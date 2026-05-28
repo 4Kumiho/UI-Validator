@@ -1,0 +1,355 @@
+#:kivy 2.0
+#:import dp kivy.metrics.dp
+
+<MenuScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.05, 0.05, 0.07, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: "vertical"
+        spacing: dp(12)
+        padding: [dp(20), dp(10)]
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(32)
+            spacing: dp(8)
+
+            Image:
+                source: "Application/_Icons/App_Icon.png"
+                size_hint_x: None
+                width: dp(32)
+                fit_mode: "contain"
+
+            Label:
+                text: "UI-Validator - Main Menu"
+                font_size: "16sp"
+                bold: True
+                color: 1, 1, 1, 1
+                size_hint_x: None
+                width: dp(200)
+
+            Widget:
+
+            Button:
+                text: "Guide"
+                size_hint_x: None
+                width: dp(75)
+                bold: True
+                font_size: "10sp"
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                on_release: print("Guide (not yet implemented)")
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                        width: 1.5
+
+            Button:
+                text: "Settings"
+                size_hint_x: None
+                width: dp(75)
+                bold: True
+                font_size: "10sp"
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                on_release: root.go_settings()
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                        width: 1.5
+
+            Button:
+                text: "Quit"
+                size_hint_x: None
+                width: dp(75)
+                bold: True
+                font_size: "10sp"
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                on_release: app.stop()
+                canvas.before:
+                    Color:
+                        rgba: 0.91, 0.30, 0.24, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                        width: 1.5
+
+        BoxLayout:
+            GridLayout:
+                cols: 3
+                padding: [dp(5), dp(5)]
+                spacing: dp(8)
+                size_hint: 0.9, 1.0
+
+                # ---- CARD DESIGNER (bordo blu) ----
+                BoxLayout:
+                    orientation: "vertical"
+                    padding: [dp(15), dp(15), dp(15), dp(12)]
+                    spacing: dp(10)
+                    canvas.before:
+                        Color:
+                            rgba: 0, 0, 0, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(14)]
+                        Color:
+                            rgba: 0.35, 0.53, 1.0, 0.85
+                        Line:
+                            width: 1.5
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(14))
+
+                    Image:
+                        source: "Application/_Icons/Icon_Designer.png"
+                        size_hint_y: None
+                        height: dp(180)
+                        fit_mode: "contain"
+
+                    Label:
+                        text: "Design test cases by recording\\nuser interactions. Build automated\\nsequences effortlessly."
+                        font_size: "9sp"
+                        color: 0.48, 0.48, 0.72, 1
+                        size_hint_y: None
+                        height: dp(45)
+                        halign: "center"
+                        valign: "top"
+                        text_size: self.size
+
+                    Widget:
+                        size_hint_y: 1
+
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(32)
+                        spacing: dp(6)
+
+                        Widget:
+
+                        Button:
+                            text: "Aggregate"
+                            bold: True
+                            font_size: "10sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_designer_aggregate()
+                            canvas.before:
+                                Color:
+                                    rgba: 0.35, 0.53, 1.0, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5
+
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(32)
+                        spacing: dp(6)
+
+                        Button:
+                            text: "Create"
+                            bold: True
+                            font_size: "10sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_designer()
+                            canvas.before:
+                                Color:
+                                    rgba: 0.35, 0.53, 1.0, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5
+
+                        Button:
+                            text: "Open"
+                            bold: True
+                            font_size: "10sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_designer_open()
+                            canvas.before:
+                                Color:
+                                    rgba: 0.35, 0.53, 1.0, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5
+
+                # ---- CARD EXECUTION (bordo verde) ----
+                BoxLayout:
+                    orientation: "vertical"
+                    padding: [dp(15), dp(15), dp(15), dp(12)]
+                    spacing: dp(10)
+                    canvas.before:
+                        Color:
+                            rgba: 0, 0, 0, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(14)]
+                        Color:
+                            rgba: 0.4, 0.85, 0.25, 0.85
+                        Line:
+                            width: 1.5
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(14))
+
+                    Image:
+                        source: "Application/_Icons/Icon_Execution.png"
+                        size_hint_y: None
+                        height: dp(180)
+                        fit_mode: "contain"
+
+                    Label:
+                        text: "Execute recorded sessions and\\ncompare against baseline images.\\nDetect UI regressions instantly."
+                        font_size: "9sp"
+                        color: 0.48, 0.48, 0.72, 1
+                        size_hint_y: None
+                        height: dp(45)
+                        halign: "center"
+                        valign: "top"
+                        text_size: self.size
+
+                    Widget:
+                        size_hint_y: 1
+
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(32)
+                        spacing: dp(6)
+
+                        Button:
+                            text: "Create"
+                            bold: True
+                            font_size: "10sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_execution()
+                            canvas.before:
+                                Color:
+                                    rgba: 0.4, 0.85, 0.25, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5
+
+                        Button:
+                            text: "Open"
+                            bold: True
+                            font_size: "10sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_execution_open()
+                            canvas.before:
+                                Color:
+                                    rgba: 0.4, 0.85, 0.25, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5
+
+                # ---- CARD TESTING (bordo arancione) ----
+                BoxLayout:
+                    orientation: "vertical"
+                    padding: [dp(15), dp(15), dp(15), dp(12)]
+                    spacing: dp(10)
+                    canvas.before:
+                        Color:
+                            rgba: 0, 0, 0, 1
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [dp(14)]
+                        Color:
+                            rgba: 1.0, 0.65, 0.35, 0.85
+                        Line:
+                            width: 1.5
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(14))
+
+                    Image:
+                        source: "Application/_Icons/Icon_Testing.PNG"
+                        size_hint_y: None
+                        height: dp(180)
+                        fit_mode: "contain"
+
+                    Label:
+                        text: "Run comprehensive test suites\\nwith automatic dependencies.\\nManage multiple test cases."
+                        font_size: "9sp"
+                        color: 0.48, 0.48, 0.72, 1
+                        size_hint_y: None
+                        height: dp(45)
+                        halign: "center"
+                        valign: "top"
+                        text_size: self.size
+
+                    Widget:
+                        size_hint_y: 1
+
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(32)
+                        spacing: dp(6)
+
+                        Button:
+                            text: "Test Suite"
+                            bold: True
+                            font_size: "9sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_test_suite()
+                            canvas.before:
+                                Color:
+                                    rgba: 1.0, 0.65, 0.35, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5
+
+                        Button:
+                            text: "Open Suite"
+                            bold: True
+                            font_size: "9sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_last_test_suite()
+                            canvas.before:
+                                Color:
+                                    rgba: 1.0, 0.65, 0.35, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5
+
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(32)
+                        spacing: dp(6)
+
+                        Button:
+                            text: "Test Case"
+                            bold: True
+                            font_size: "9sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_test_specific()
+                            canvas.before:
+                                Color:
+                                    rgba: 1.0, 0.65, 0.35, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5
+
+                        Button:
+                            text: "Open Case"
+                            bold: True
+                            font_size: "9sp"
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.go_last_test_case()
+                            canvas.before:
+                                Color:
+                                    rgba: 1.0, 0.65, 0.35, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                                    width: 1.5

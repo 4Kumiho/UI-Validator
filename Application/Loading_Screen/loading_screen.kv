@@ -1,0 +1,86 @@
+#:kivy 2.0
+
+<LoadingScreen>:
+    FloatLayout:
+        # Very dark gray background (almost black)
+        canvas.before:
+            Color:
+                rgba: 0.05, 0.05, 0.07, 1
+            Rectangle:
+                size: self.size
+                pos: self.pos
+
+        # Centered loading box
+        BoxLayout:
+            orientation: "vertical"
+            size_hint: 0.45, None
+            height: dp(550)
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+            padding: [dp(20), dp(16)]
+            spacing: dp(12)
+
+            # Red border box
+            canvas.before:
+                Color:
+                    rgba: 0, 0, 0, 1
+                RoundedRectangle:
+                    size: self.size
+                    pos: self.pos
+                    radius: [dp(14)]
+                Color:
+                    rgba: 0.91, 0.30, 0.24, 0.85
+                Line:
+                    width: 1.5
+                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(14))
+
+            # Loading image (static PNG)
+            Image:
+                source: "Application/_Icons/Loading.png"
+                size_hint_y: 0.35
+                allow_stretch: True
+                keep_ratio: True
+
+            # Loading animation (GIF)
+            Image:
+                source: "Application/_Icons/Loading.gif"
+                size_hint_y: 0.35
+                allow_stretch: True
+                keep_ratio: True
+                anim_delay: 0.04
+
+            # Status text
+            Label:
+                text: root.status_text
+                font_size: "13sp"
+                color: 0.75, 0.75, 0.85, 1
+                size_hint_y: None
+                height: dp(24)
+
+            # Progress bar
+            ProgressBar:
+                value: root.progress * 100
+                max: 100
+                size_hint_y: None
+                height: dp(8)
+                canvas.before:
+                    Color:
+                        rgba: 0.20, 0.20, 0.28, 1
+                    RoundedRectangle:
+                        size: self.size
+                        pos: self.pos
+                        radius: [dp(4)]
+                canvas:
+                    Color:
+                        rgba: 0.91, 0.30, 0.24, 1
+                    RoundedRectangle:
+                        size: self.width * (root.progress), self.height
+                        pos: self.x, self.y
+                        radius: [dp(4)]
+
+            # Version label
+            Label:
+                text: "UI-Validator Version: v1.1.1"
+                font_size: "10sp"
+                color: 0.48, 0.48, 0.72, 0.7
+                size_hint_y: None
+                height: dp(16)

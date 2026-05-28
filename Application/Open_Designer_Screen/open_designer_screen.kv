@@ -1,0 +1,151 @@
+#:kivy 2.0
+#:import dp kivy.metrics.dp
+
+<OpenDesignerScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.05, 0.05, 0.07, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: "vertical"
+        spacing: dp(0)
+
+        # Top bar
+        BoxLayout:
+            size_hint_y: None
+            height: dp(50)
+            padding: [dp(20), dp(10)]
+            spacing: dp(12)
+
+            Button:
+                text: "< Back"
+                size_hint_x: None
+                width: dp(80)
+                font_size: "11sp"
+                bold: True
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                        width: 1.5
+
+            Label:
+                text: "Designer - Open Session"
+                font_size: "16sp"
+                bold: True
+                color: 1, 1, 1, 1
+                halign: "left"
+                valign: "center"
+                text_size: self.size
+
+        # Wordmark
+        BoxLayout:
+            size_hint_y: None
+            height: dp(70)
+
+            Image:
+                source: "Application/_Icons/Wordmark_Designer.PNG"
+                fit_mode: "contain"
+
+        # Form
+        FloatLayout:
+            BoxLayout:
+                orientation: "vertical"
+                padding: dp(30)
+                spacing: dp(18)
+                size_hint: None, None
+                width: min(dp(450), root.width - dp(60))
+                height: self.minimum_height
+                pos_hint: {"center_x": 0.5, "center_y": 0.5}
+                canvas.before:
+                    Color:
+                        rgba: 0, 0, 0, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(14)]
+                    Color:
+                        rgba: 0.35, 0.53, 1.0, 0.85
+                    Line:
+                        width: 1.5
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(14))
+
+                Label:
+                    text: "Designer Folder"
+                    font_size: "11sp"
+                    color: 0.48, 0.48, 0.72, 1
+                    size_hint_y: None
+                    height: dp(20)
+                    halign: "left"
+                    text_size: self.size
+
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(8)
+
+                    TextInput:
+                        id: designer_folder_input
+                        hint_text: "Choose a folder…"
+                        multiline: False
+                        font_size: "12sp"
+                        background_color: 0.08, 0.08, 0.10, 1
+                        foreground_color: 1, 1, 1, 1
+                        cursor_color: 0.35, 0.53, 1.0, 1
+                        hint_text_color: 0.35, 0.35, 0.50, 1
+                        padding: [dp(12), dp(10)]
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.3
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1
+
+                    Button:
+                        text: "Browse"
+                        size_hint_x: None
+                        width: dp(70)
+                        font_size: "11sp"
+                        bold: True
+                        background_color: 0, 0, 0, 0
+                        color: 1, 1, 1, 1
+                        on_release: root.browse_folder()
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 1
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1.5
+
+                Label:
+                    text: root.error_msg
+                    font_size: "11sp"
+                    color: 0.91, 0.30, 0.24, 1
+                    size_hint_y: None
+                    height: dp(20) if root.error_msg else 0
+                    opacity: 1 if root.error_msg else 0
+                    halign: "center"
+                    text_size: self.size
+
+                Button:
+                    text: "Open Designer"
+                    bold: True
+                    font_size: "13sp"
+                    size_hint_y: None
+                    height: dp(48)
+                    background_color: 0, 0, 0, 0
+                    color: 1, 1, 1, 1
+                    on_release: root.start_opening()
+                    canvas.before:
+                        Color:
+                            rgba: 0.35, 0.53, 1.0, 1
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                            width: 1.5

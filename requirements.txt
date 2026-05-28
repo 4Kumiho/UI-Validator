@@ -1,0 +1,33 @@
+# UI Framework
+kivy==2.3.0  # Kivy GUI framework
+
+# Screen capture & image processing
+Pillow==10.1.0  # Image manipulation
+mss==9.0.1  # Fast screen capture
+opencv-python==4.6.0.66  # Computer vision, template matching (compatible with PaddleOCR)
+
+# OCR & AI Features
+paddlepaddle==2.6.2  # PaddlePaddle framework required by PaddleOCR
+paddleocr==2.8.1  # PaddleOCR for text detection with coordinates
+torch==2.1.2  # PyTorch - required by torchvision
+torchvision==0.16.2  # EfficientNetV2-L for high-precision feature extraction
+
+# Layout & UI Element Detection
+transformers==4.35.0  # LayoutLMv3 for UI layout understanding
+huggingface-hub==0.17.3  # Model hub access
+
+# Segmentation
+segment-anything==1.0  # SAM for precise edge and corner detection
+
+# Multimodal Vision-Language Model
+git+https://github.com/openai/CLIP.git@main  # CLIP for multimodal UI element matching
+
+# Database & utilities
+sqlalchemy==2.0.23  # ORM for database operations
+numpy==1.24.3  # Numerical computing
+
+# Input simulation
+pynput==1.7.6  # Cross-platform keyboard/mouse control
+
+# Media
+ffpyplayer==4.5.1  # Audio/video playback (Kivy requirement)

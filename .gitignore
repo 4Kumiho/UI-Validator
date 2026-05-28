@@ -1,0 +1,56 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kivy
+.kivy/
+kivy.log
+
+# Models and data (stored in ~/.cache/yolov8/)
+*.pt
+*.onnx
+*.pth
+*.weights
+
+# Database
+*.db
+*.sqlite3
+
+# Video outputs
+*.mp4
+*.avi
+*.mov
+
+# Logs
+*.log

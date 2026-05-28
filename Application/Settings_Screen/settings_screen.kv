@@ -1,0 +1,309 @@
+#:kivy 2.0
+#:import dp kivy.metrics.dp
+
+<SettingsScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.05, 0.05, 0.07, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: "vertical"
+        spacing: dp(0)
+
+        # Top bar
+        BoxLayout:
+            size_hint_y: None
+            height: dp(50)
+            padding: [dp(20), dp(10)]
+            spacing: dp(12)
+
+            Button:
+                text: "< Back"
+                size_hint_x: None
+                width: dp(80)
+                font_size: "11sp"
+                bold: True
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                        width: 1.5
+
+            Label:
+                text: "Settings"
+                font_size: "16sp"
+                bold: True
+                color: 1, 1, 1, 1
+                halign: "left"
+                valign: "center"
+                text_size: self.size
+
+        # Main content - centered card
+        FloatLayout:
+            # Title above card
+            Label:
+                text: "Designer"
+                font_size: "18sp"
+                bold: True
+                color: 0.35, 0.53, 1.0, 1
+                size_hint_y: None
+                height: dp(40)
+                pos_hint: {"center_x": 0.5, "top": 0.95}
+
+            BoxLayout:
+                orientation: "vertical"
+                padding: dp(30)
+                spacing: dp(18)
+                size_hint: None, None
+                width: min(dp(400), root.width - dp(60))
+                height: self.minimum_height
+                pos_hint: {"center_x": 0.5, "center_y": 0.45}
+
+                canvas.before:
+                    Color:
+                        rgba: 0, 0, 0, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(14)]
+                    Color:
+                        rgba: 0.35, 0.53, 1.0, 0.85
+                    Line:
+                        width: 1.5
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(14))
+
+                Label:
+                    text: "Designer — Open Menu Key"
+                    font_size: "11sp"
+                    color: 0.48, 0.48, 0.72, 1
+                    size_hint_y: None
+                    height: dp(20)
+                    halign: "left"
+                    text_size: self.size
+
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(10)
+
+                    Label:
+                        text: root.open_menu_key
+                        font_size: "13sp"
+                        color: 0.48, 0.48, 0.72, 1
+                        bold: True
+                        halign: "left"
+                        valign: "center"
+                        text_size: self.size
+                        padding: [dp(10), 0]
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.3
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1
+
+                    Button:
+                        text: "CHANGE"
+                        size_hint_x: None
+                        width: dp(80)
+                        font_size: "10sp"
+                        bold: True
+                        background_color: 0, 0, 0, 0
+                        color: 1, 1, 1, 1
+                        on_release: root.show_popup_open_menu()
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.5
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1.5
+
+                Label:
+                    text: "Refresh Screenshot Key"
+                    font_size: "11sp"
+                    color: 0.48, 0.48, 0.72, 1
+                    size_hint_y: None
+                    height: dp(20)
+                    halign: "left"
+                    text_size: self.size
+
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(10)
+
+                    Label:
+                        text: root.refresh_screenshot_key
+                        font_size: "13sp"
+                        color: 0.48, 0.48, 0.72, 1
+                        bold: True
+                        halign: "left"
+                        valign: "center"
+                        text_size: self.size
+                        padding: [dp(10), 0]
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.3
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1
+
+                    Button:
+                        text: "CHANGE"
+                        size_hint_x: None
+                        width: dp(80)
+                        font_size: "10sp"
+                        bold: True
+                        background_color: 0, 0, 0, 0
+                        color: 1, 1, 1, 1
+                        on_release: root.show_popup_refresh_screenshot()
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.5
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1.5
+
+                Label:
+                    text: "End Input Key"
+                    font_size: "11sp"
+                    color: 0.48, 0.48, 0.72, 1
+                    size_hint_y: None
+                    height: dp(20)
+                    halign: "left"
+                    text_size: self.size
+
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(10)
+
+                    Label:
+                        text: root.end_input_key
+                        font_size: "13sp"
+                        color: 0.48, 0.48, 0.72, 1
+                        bold: True
+                        halign: "left"
+                        valign: "center"
+                        text_size: self.size
+                        padding: [dp(10), 0]
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.3
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1
+
+                    Button:
+                        text: "CHANGE"
+                        size_hint_x: None
+                        width: dp(80)
+                        font_size: "10sp"
+                        bold: True
+                        background_color: 0, 0, 0, 0
+                        color: 1, 1, 1, 1
+                        on_release: root.show_popup_end_input()
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.5
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1.5
+
+                Label:
+                    text: "End Designer Key"
+                    font_size: "11sp"
+                    color: 0.48, 0.48, 0.72, 1
+                    size_hint_y: None
+                    height: dp(20)
+                    halign: "left"
+                    text_size: self.size
+
+                BoxLayout:
+                    orientation: "horizontal"
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(10)
+
+                    Label:
+                        text: root.end_designer_key
+                        font_size: "13sp"
+                        color: 0.48, 0.48, 0.72, 1
+                        bold: True
+                        halign: "left"
+                        valign: "center"
+                        text_size: self.size
+                        padding: [dp(10), 0]
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.3
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1
+
+                    Button:
+                        text: "CHANGE"
+                        size_hint_x: None
+                        width: dp(80)
+                        font_size: "10sp"
+                        bold: True
+                        background_color: 0, 0, 0, 0
+                        color: 1, 1, 1, 1
+                        on_release: root.show_popup_end_designer()
+                        canvas.before:
+                            Color:
+                                rgba: 0.35, 0.53, 1.0, 0.5
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1.5
+
+        # Bottom buttons
+        BoxLayout:
+            size_hint_y: None
+            height: dp(50)
+            spacing: dp(12)
+            padding: [dp(20), dp(10)]
+
+            Button:
+                text: "Set Defaults"
+                size_hint_x: None
+                width: dp(100)
+                font_size: "11sp"
+                bold: True
+                background_color: 0, 0, 0, 0
+                color: 0.8, 0.8, 0.8, 1
+                on_release: root.set_defaults()
+                canvas.before:
+                    Color:
+                        rgba: 0.6, 0.6, 0.6, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                        width: 1.5
+
+            Widget:
+
+            Button:
+                text: "SAVE ✓"
+                size_hint_x: None
+                width: dp(80)
+                font_size: "11sp"
+                bold: True
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                on_release: root.save_settings()
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                        width: 1.5
