@@ -37,6 +37,9 @@ class LoadingScreen(Screen):
         Thread(target=self._load_models, daemon=True).start()
 
     def _load_models(self):
+        # TODO: Models disabled - corporate network blocks external downloads
+        # Uncomment when network access is available
+        """
         try:
             # Disable SSL verification for downloads (required in some network environments)
             import ssl
@@ -136,7 +139,7 @@ class LoadingScreen(Screen):
 
             self._update(1.0, "Ready!")
             Clock.schedule_once(lambda dt: self._transition_to_menu(), 0.3)
-            
+
         except Exception as e:
             import traceback
             error_msg = f"Error: {str(e)}"
@@ -147,6 +150,10 @@ class LoadingScreen(Screen):
             print(f"{'='*60}\n")
             self._update(1.0, error_msg)
             Clock.schedule_once(lambda dt: self._transition_to_menu(), 3.0)
+        """
+        # Go directly to menu
+        self._update(1.0, "Ready!")
+        Clock.schedule_once(lambda dt: self._transition_to_menu(), 0.3)
 
     def _update(self, value, text):
         Clock.schedule_once(lambda dt: self._apply(value, text))

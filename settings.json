@@ -1,8 +1,12 @@
 {
   "designer": {
+    "open_menu_key": "esc",
+    "refresh_sreenshot_key_shortcut": null,
+    "end_input_key_shortcut": null,
+    "end_designer_key_shortcut": null
+  },
+  "execution": {
     "open_menu_key": "ESC",
-    "refresh_sreenshot_key_shortcut": "F9",
-    "end_input_key_shortcut": "F8",
-    "end_designer_key_shortcut": "F7"
+    "end_execution_key_shortcut": "F7"
   }
 }
