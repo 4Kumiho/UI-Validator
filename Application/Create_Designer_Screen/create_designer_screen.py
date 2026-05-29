@@ -53,7 +53,7 @@ class CreateDesignerScreen(Screen):
             self.ids.output_folder_input.text = folder
 
     def go_back(self):
-        """Torna al menu."""
+        """Return to menu."""
         self.manager.current = "menu"
 
     def start_recording(self):
@@ -89,7 +89,7 @@ class CreateDesignerScreen(Screen):
 
     # ===== Monitor Management =====
     def refresh_monitors(self):
-        """Enumera i monitor e popola lo spinner."""
+        """Enumerate monitors and populate spinner."""
         try:
             from mss import mss
             with mss() as sct:
@@ -111,7 +111,7 @@ class CreateDesignerScreen(Screen):
 
     @staticmethod
     def get_monitor_index(monitor_text: str) -> int:
-        """Estrae indice del monitor dal testo spinner."""
+        """Extract monitor index from spinner text."""
         try:
             parts = monitor_text.split("(")
             if len(parts) > 0:
@@ -124,7 +124,7 @@ class CreateDesignerScreen(Screen):
 
     @staticmethod
     def get_system_zoom(monitor_index: int = 0) -> int:
-        """Detecta zoom level del monitor."""
+        """Detect monitor zoom level."""
         if os.name == 'nt':
             try:
                 from mss import mss
@@ -173,44 +173,16 @@ class CreateDesignerScreen(Screen):
                 print(f"[WARN] Failed to load settings.json: {e}")
                 settings = {}
 
-            # Get models from registry
-            from Models.model_registry import get_model
-            models = {
-                'ocr': get_model('ocr'),
-                'efficientnet': get_model('efficientnet'),
-                'sam': get_model('sam'),
-            }
-
-            layoutlm_result = get_model('layoutlm')
-            models['layoutlm'], models['layoutlm_processor'] = (layoutlm_result if layoutlm_result else (None, None))
-
-            clip_result = get_model('clip')
-            models['clip'], models['clip_preprocess'] = (clip_result if clip_result else (None, None))
-
             # Check if critical models are loaded
-            if not models['ocr'] or not models['efficientnet'] or not models['sam']:
-                self.error_msg = "Modelli non caricati. Riavviare la app."
+            from Models.model_registry import get_model
+            if not get_model('ocr') or not get_model('efficientnet') or not get_model('sam'):
+                self.error_msg = "Critical models not loaded. Please restart the app."
                 return
-
-            # Debug logging
-            for name, model in [('ocr', models['ocr']), ('efficientnet', models['efficientnet']),
-                               ('layoutlm', models['layoutlm']), ('sam', models['sam']), ('clip', models['clip'])]:
-                print(f"[DEBUG] {name.upper()} model: {type(model).__name__ if model else 'None'}")
 
             self.minimize_window()
 
             def run_designer():
-                designer = Designer(
-                    session_name, save_folder, monitor_info,
-                    settings,
-                    ocr_model=models['ocr'],
-                    efficientnet_model=models['efficientnet'],
-                    layoutlm_model=models['layoutlm'],
-                    layoutlm_processor=models['layoutlm_processor'],
-                    sam_model=models['sam'],
-                    clip_model=models['clip'],
-                    clip_preprocess=models['clip_preprocess']
-                )
+                designer = Designer(session_name, save_folder, monitor_info, settings)
                 designer.start()
                 self.restore_window()
 
@@ -224,11 +196,11 @@ class CreateDesignerScreen(Screen):
 
     # ===== Window Management =====
     def minimize_window(self):
-        """Minimizza finestra Kivy."""
+        """Minimize Kivy window."""
         self._set_window_visibility(False)
 
     def restore_window(self):
-        """Ripristina finestra Kivy."""
+        """Restore Kivy window."""
         self._set_window_visibility(True)
 
     @staticmethod
@@ -248,8 +220,8 @@ class CreateDesignerScreen(Screen):
 
     # ===== Helper Methods =====
     @staticmethod
-    def _browse_folder_dialog(title: str = "Seleziona cartella") -> str:
-        """Apre file dialog per scegliere cartella."""
+    def _browse_folder_dialog(title: str = "Select folder") -> str:
+        """Open file dialog to select folder."""
         result = [""]
 
         def _open_dialog():

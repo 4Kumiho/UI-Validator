@@ -1,4 +1,4 @@
-"""OCR via PaddleOCR."""
+"""OCR via EasyOCR."""
 
 import logging
 
@@ -8,23 +8,20 @@ logger = logging.getLogger(__name__)
 class OCRGenerator:
     @staticmethod
     def extract(ocr_model, bbox_image) -> str:
-        """Estrae testo da immagine usando PaddleOCR."""
+        """Estrae testo da immagine usando EasyOCR."""
         try:
-            logger.debug("[OCR] Extracting text with PaddleOCR")
-            result = ocr_model.ocr(bbox_image, cls=True)
+            logger.debug("[OCR] Extracting text with EasyOCR")
+            results = ocr_model.readtext(bbox_image)
 
-            # PaddleOCR returns: [[[x1,y1], [x2,y2], [x3,y3], [x4,y4]], (text, confidence)], ...]
-            if not result or not result[0]:
+            # EasyOCR returns: [([bbox_points], 'text', confidence), ...]
+            if not results:
                 logger.debug("[OCR] No text detected")
                 return ""
 
             texts = []
-            for line in result:
-                for detection in line:
-                    if detection and len(detection) >= 2:
-                        text_info = detection[1]
-                        text = text_info[0] if isinstance(text_info, tuple) else text_info
-                        texts.append(text)
+            for bbox_points, text, confidence in results:
+                if text and text.strip():
+                    texts.append(text)
 
             combined_text = " ".join(texts).strip()
             logger.debug(f"[OCR] Extracted {len(combined_text)} chars")

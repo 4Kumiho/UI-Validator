@@ -1,23 +1,22 @@
-"""Global model registry - stores loaded AI models for reuse across the application."""
+"""Registry for storing loaded models in memory"""
 
-_registry = {}
+_models = {}
 
+def set_model(name, model):
+    """Store a model in the registry"""
+    _models[name] = model
 
-def set_model(name: str, instance):
-    """Register a loaded model instance."""
-    _registry[name] = instance
-
-
-def get_model(name: str):
-    """Retrieve a registered model instance."""
-    return _registry.get(name)
-
+def get_model(name):
+    """Retrieve a model from the registry"""
+    model = _models.get(name)
+    if name == 'layoutlm':
+        print(f"[DEBUG] get_model('{name}'): {type(model).__name__ if model else 'None'}, registry keys: {list(_models.keys())}")
+    return model
 
 def get_all_models():
-    """Get all registered models."""
-    return _registry.copy()
+    """Get all registered models"""
+    return _models
 
-
-def clear_registry():
-    """Clear all registered models (for cleanup/testing)."""
-    _registry.clear()
+def clear_models():
+    """Clear all registered models"""
+    _models.clear()

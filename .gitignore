@@ -54,3 +54,10 @@ kivy.log
 
 # Logs
 *.log
+
+# Downloaded AI Models
+/Models/efficientnet/
+/Models/layoutlmv3/
+/Models/sam/
+/Models/clip/
+/Models/easyocr/

@@ -7,8 +7,7 @@ mss>=9.0.1                  # Fast screen capture
 opencv-python>=4.6.0        # Computer vision, template matching
 
 # OCR & AI Features
-paddlepaddle>=2.6.0         # PaddlePaddle framework required by PaddleOCR
-paddleocr>=2.8.0            # PaddleOCR for text detection with coordinates
+easyocr>=1.7.0              # EasyOCR for text detection with coordinates
 torch>=2.3.0                # PyTorch - required by torchvision
 torchvision>=0.18.0         # EfficientNetV2-L for high-precision feature extraction
 
@@ -20,7 +19,8 @@ huggingface-hub>=0.17.0     # Model hub access
 segment-anything>=1.0       # SAM for precise edge and corner detection
 
 # Multimodal Vision-Language Model
-open-clip-torch>=2.20.0     # CLIP for multimodal UI element matching
+git+https://github.com/openai/CLIP.git  # CLIP for multimodal UI element matching
+open-clip-torch>=2.20.0     # Alternative CLIP implementation
 
 # Database & utilities
 sqlalchemy>=2.0.0           # ORM for database operations

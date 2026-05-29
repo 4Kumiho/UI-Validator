@@ -57,7 +57,7 @@ class SettingsScreen(Screen):
             designer = settings.get("designer", {})
 
             self.open_menu_key = designer.get("open_menu_key") or "esc"
-            self.refresh_screenshot_key = designer.get("refresh_sreenshot_key_shortcut") or ""
+            self.refresh_screenshot_key = designer.get("refresh_screenshot_key_shortcut") or ""
             self.end_input_key = designer.get("end_input_key_shortcut") or ""
             self.end_designer_key = designer.get("end_designer_key_shortcut") or ""
 
@@ -253,7 +253,7 @@ class SettingsScreen(Screen):
                 settings = json.load(f)
 
             settings["designer"]["open_menu_key"] = self.open_menu_key
-            settings["designer"]["refresh_sreenshot_key_shortcut"] = self.refresh_screenshot_key if self.refresh_screenshot_key else None
+            settings["designer"]["refresh_screenshot_key_shortcut"] = self.refresh_screenshot_key if self.refresh_screenshot_key else None
             settings["designer"]["end_input_key_shortcut"] = self.end_input_key if self.end_input_key else None
             settings["designer"]["end_designer_key_shortcut"] = self.end_designer_key if self.end_designer_key else None
 

@@ -56,11 +56,11 @@ class DesignerStep(DesignerBase):
     BBox fields (all action types):
     - BBox: JSON {x, y, w, h} - absolute screen position of detected element
     - BBox_Template: PNG crop of the element for template matching
-    - BBox_OCR_text: Extracted text via PaddleOCR
+    - BBox_OCR_text: Extracted text via EasyOCR
     - BBox_EfficientNet_Features: 1280-dim EfficientNetV2-L features (5120 bytes = 1280 × float32)
     - BBox_LayoutLM_Type: UI element type classification (button, input, text, image, etc.)
     - BBox_LayoutLM_Confidence: Confidence scores for element type classification
-    - BBox_CLIP_Features: 512-dim CLIP ViT-L/14@336px features (2048 bytes = 512 × float32)
+    - BBox_CLIP_Features: 768-dim CLIP ViT-L/14@336px features (3072 bytes = 768 × float32)
     - BBox_SAM_Mask: Segmentation mask for precise element boundaries
     - BBox_SAM_Contours: Precise edge/corner coordinates of detected element
 
@@ -109,7 +109,7 @@ class DesignerStep(DesignerBase):
     BBox_EfficientNet_Features = Column(LargeBinary, nullable=True)  # 5120 bytes (1280 features)
     BBox_LayoutLM_Type = Column(String, nullable=True)  # UI element type: button, input, text, image, etc.
     BBox_LayoutLM_Confidence = Column(String, nullable=True)  # Confidence scores for each type
-    BBox_CLIP_Features = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px feature vector (3072 bytes = 768 × float32)
+    BBox_CLIP_Features = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px features (3072 bytes = 768 × float32)
     BBox_SAM_Mask = Column(LargeBinary, nullable=True)  # SAM segmentation mask (binary array)
     BBox_SAM_Contours = Column(String, nullable=True)  # JSON: [[x1,y1], [x2,y2], ...] - precise edges/corners
 
@@ -121,7 +121,7 @@ class DesignerStep(DesignerBase):
     BBox_drag_EfficientNet_Features = Column(LargeBinary, nullable=True)  # 5120 bytes
     BBox_drag_LayoutLM_Type = Column(String, nullable=True)  # UI element type for drag target
     BBox_drag_LayoutLM_Confidence = Column(String, nullable=True)  # Confidence scores for drag target
-    BBox_drag_CLIP_Features = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px features (3072 bytes)
+    BBox_drag_CLIP_Features = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px features (3072 bytes = 768 × float32)
     BBox_drag_SAM_Mask = Column(LargeBinary, nullable=True)  # SAM segmentation mask for drag target
     BBox_drag_SAM_Contours = Column(String, nullable=True)  # JSON: precise edges/corners of drag target
 
@@ -229,7 +229,7 @@ class ExecutionStep(ExecutionBase):
     BBox_EfficientNet_Features = Column(LargeBinary, nullable=True)  # 5120 bytes
     BBox_LayoutLM_Type = Column(String, nullable=True)  # Original UI element type
     BBox_LayoutLM_Confidence = Column(String, nullable=True)  # Original confidence scores
-    BBox_CLIP_Features = Column(LargeBinary, nullable=True)  # 2048 bytes
+    BBox_CLIP_Features = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px features (3072 bytes = 768 × float32)
     BBox_SAM_Mask = Column(LargeBinary, nullable=True)  # SAM segmentation mask
     BBox_SAM_Contours = Column(String, nullable=True)  # JSON: precise edges
     BBox_rel_coordinates = Column(String, nullable=True)  # JSON: {x, y} - NOT for INPUT
@@ -241,7 +241,7 @@ class ExecutionStep(ExecutionBase):
     BBox_Exec_EfficientNet_Features_Detected = Column(LargeBinary, nullable=True)  # 5120 bytes
     BBox_Exec_LayoutLM_Type_Detected = Column(String, nullable=True)  # Detected UI element type
     BBox_Exec_LayoutLM_Confidence_Detected = Column(String, nullable=True)  # Detected confidence scores
-    BBox_Exec_CLIP_Features_Detected = Column(LargeBinary, nullable=True)  # 2048 bytes
+    BBox_Exec_CLIP_Features_Detected = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px features (3072 bytes = 768 × float32)
     BBox_Exec_SAM_Mask_Detected = Column(LargeBinary, nullable=True)  # SAM mask detected
     BBox_Exec_SAM_Contours_Detected = Column(String, nullable=True)  # JSON: detected edges
 
@@ -264,7 +264,7 @@ class ExecutionStep(ExecutionBase):
     BBox_drag_EfficientNet_Features = Column(LargeBinary, nullable=True)  # 5120 bytes
     BBox_drag_LayoutLM_Type = Column(String, nullable=True)  # UI element type for drag target
     BBox_drag_LayoutLM_Confidence = Column(String, nullable=True)  # Confidence for drag target
-    BBox_drag_CLIP_Features = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px features (3072 bytes)
+    BBox_drag_CLIP_Features = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px features (3072 bytes = 768 × float32)
     BBox_drag_SAM_Mask = Column(LargeBinary, nullable=True)  # SAM segmentation mask for drag target
     BBox_drag_SAM_Contours = Column(String, nullable=True)  # JSON: precise edges for drag target
     BBox_drag_rel_coordinates = Column(String, nullable=True)  # JSON: {x, y}
@@ -276,7 +276,7 @@ class ExecutionStep(ExecutionBase):
     BBox_drag_Exec_EfficientNet_Features_Detected = Column(LargeBinary, nullable=True)  # 5120 bytes
     BBox_drag_Exec_LayoutLM_Type_Detected = Column(String, nullable=True)  # Detected type for drag
     BBox_drag_Exec_LayoutLM_Confidence_Detected = Column(String, nullable=True)  # Detected confidence for drag
-    BBox_drag_Exec_CLIP_Features_Detected = Column(LargeBinary, nullable=True)  # 2048 bytes
+    BBox_drag_Exec_CLIP_Features_Detected = Column(LargeBinary, nullable=True)  # 768-dim CLIP ViT-L/14@336px features (3072 bytes = 768 × float32)
     BBox_drag_Exec_SAM_Mask_Detected = Column(LargeBinary, nullable=True)  # SAM mask detected for drag
     BBox_drag_Exec_SAM_Contours_Detected = Column(String, nullable=True)  # JSON: detected edges for drag
 

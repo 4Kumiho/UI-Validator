@@ -20,36 +20,27 @@ class BBoxGenerator:
         ocr_bbox = None
         ocr_text = None
 
-        # Stage 1: PaddleOCR text localization
+        # Stage 1: EasyOCR text localization
         if ocr_model:
             logger.debug("[OCR] Searching for text elements...")
             try:
-                ocr_results = ocr_model.ocr(screenshot, cls=True)
+                ocr_results = ocr_model.readtext(screenshot)
                 if ocr_results:
-                    for line in ocr_results:
-                        for detection in line:
-                            if not detection or len(detection) < 2:
-                                continue
-                            bbox_points, text_info = detection[0], detection[1]
-                            text = text_info[0] if isinstance(text_info, tuple) else text_info
-                            confidence = text_info[1] if isinstance(text_info, tuple) else 0.0
+                    for bbox_points, text, confidence in ocr_results:
+                        x_coords = [p[0] for p in bbox_points]
+                        y_coords = [p[1] for p in bbox_points]
+                        x_min, x_max = int(min(x_coords)), int(max(x_coords))
+                        y_min, y_max = int(min(y_coords)), int(max(y_coords))
 
-                            x_coords = [p[0] for p in bbox_points]
-                            y_coords = [p[1] for p in bbox_points]
-                            x_min, x_max = int(min(x_coords)), int(max(x_coords))
-                            y_min, y_max = int(min(y_coords)), int(max(y_coords))
-
-                            # Check if click is inside text bbox
-                            if x_min <= click_x <= x_max and y_min <= click_y <= y_max:
-                                w = x_max - x_min
-                                h = y_max - y_min
-                                if w * h > 0:
-                                    ocr_bbox = {"x": x_min, "y": y_min, "w": w, "h": h}
-                                    ocr_text = text
-                                    logger.info(f"[OCR] Found text '{text}' at click position")
-                                    break
-                        if ocr_bbox:
-                            break
+                        # Check if click is inside text bbox
+                        if x_min <= click_x <= x_max and y_min <= click_y <= y_max:
+                            w = x_max - x_min
+                            h = y_max - y_min
+                            if w * h > 0:
+                                ocr_bbox = {"x": x_min, "y": y_min, "w": w, "h": h}
+                                ocr_text = text
+                                logger.info(f"[OCR] Found text '{text}' at click position")
+                                break
             except Exception as e:
                 logger.debug(f"[OCR] Error: {e}")
 
@@ -58,13 +49,6 @@ class BBoxGenerator:
         if sam_model and ocr_bbox:
             logger.debug("[SAM] Refining bbox with visual element detection...")
             try:
-                # Expand OCR bbox upward to capture icon/visual element above text
-                expand_pixels = 40  # Look 40px above the text
-                sam_search_x1 = ocr_bbox["x"]
-                sam_search_y1 = max(0, ocr_bbox["y"] - expand_pixels)
-                sam_search_x2 = ocr_bbox["x"] + ocr_bbox["w"]
-                sam_search_y2 = ocr_bbox["y"] + ocr_bbox["h"]
-
                 # Use SAM to find precise boundaries of visual element
                 from segment_anything import SamPredictor
                 if isinstance(sam_model, SamPredictor):

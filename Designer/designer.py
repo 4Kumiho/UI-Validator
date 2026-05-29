@@ -31,35 +31,29 @@ logger = logging.getLogger(__name__)
 
 
 class Designer:
-    def __init__(self, session_name: str, save_folder: str, monitor_info: dict, settings: dict = None,
-                 ocr_model=None, efficientnet_model=None, layoutlm_model=None, layoutlm_processor=None,
-                 sam_model=None, clip_model=None, clip_preprocess=None):
+    def __init__(self, session_name: str, save_folder: str, monitor_info: dict, settings: dict = None):
         """
         session_name: nome della sessione
         save_folder: cartella dove salvare il DB
         monitor_info: dict con left, top, width, height del monitor
         settings: dict con config (default: Open_Designer_Menu_key)
-        ocr_model: OCR model (PaddleOCR)
-        efficientnet_model: EfficientNetV2-L model
-        layoutlm_model: LayoutLMv3 model for UI element type classification
-        layoutlm_processor: LayoutLMv3 processor
-        sam_model: SAM (Segment Anything) model for precise element detection
-        clip_model: CLIP model
-        clip_preprocess: CLIP preprocessing function
+
+        Models are loaded from model_registry automatically.
         """
         self.session_name = session_name
         self.save_folder = save_folder
         self.monitor_info = monitor_info
         self.settings = settings or {'Open_Designer_Menu_key': 'ctrl+shift+d'}
 
-        # Models passed from caller
-        self.ocr_model = ocr_model
-        self.efficientnet_model = efficientnet_model
-        self.layoutlm_model = layoutlm_model
-        self.layoutlm_processor = layoutlm_processor
-        self.sam_model = sam_model
-        self.clip_model = clip_model
-        self.clip_preprocess = clip_preprocess
+        # Load models from registry
+        self.ocr_model = get_model('ocr')
+        self.efficientnet_model = get_model('efficientnet')
+        layoutlm = get_model('layoutlm')
+        self.layoutlm_model, self.layoutlm_processor = layoutlm if layoutlm else (None, None)
+        print(f"[DEBUG] Designer.__init__: layoutlm={layoutlm}, model={type(self.layoutlm_model).__name__ if self.layoutlm_model else 'None'}, processor={type(self.layoutlm_processor).__name__ if self.layoutlm_processor else 'None'}")
+        self.sam_model = get_model('sam')
+        clip = get_model('clip')
+        self.clip_model, self.clip_preprocess = clip if clip else (None, None)
 
         # State
         self.should_stop = False
@@ -222,7 +216,7 @@ class Designer:
         # Extract features
         ocr_text = OCRGenerator.extract(self.ocr_model, bbox_image)
         efficientnet_features = EfficientNetGenerator.extract(self.efficientnet_model, bbox_image)
-        layoutlm_type, layoutlm_confidence = LayoutLMGenerator.extract(self.layoutlm_model, self.layoutlm_processor, bbox_image)
+        layoutlm_type, layoutlm_confidence = LayoutLMGenerator.extract(self.layoutlm_model, self.layoutlm_processor, bbox_image, ocr_text, self.ocr_model)
         sam_mask, sam_contours = SAMGenerator.extract(self.sam_model, bbox_image, click_x - bbox['x'], click_y - bbox['y'])
         clip_features = CLIPGenerator.extract(self.clip_model, self.clip_preprocess, bbox_image)
 
@@ -240,7 +234,7 @@ class Designer:
         if action_type == 'SCROLL':
             scroll = action_dict.get('scroll', {'dx': 0, 'dy': 0})
             step = DesignerStep(
-                Step_number=self.step_count + 1,
+                Step_number=self.step_count,
                 Action_type='SCROLL',
                 Screenshot=screenshot_png.tobytes(),
                 Modifier_keys=json.dumps(pressed_keys),
@@ -259,7 +253,7 @@ class Designer:
             )
         else:
             step = DesignerStep(
-                Step_number=self.step_count + 1,
+                Step_number=self.step_count,
                 Action_type=action_type,
                 Screenshot=screenshot_png.tobytes(),
                 Modifier_keys=json.dumps(pressed_keys),
@@ -276,7 +270,7 @@ class Designer:
             )
 
         self.db.add_step(step)
-        logger.info(f"[DB] Step {self.step_count + 1} saved: {action_type}")
+        logger.info(f"[DB] Step {self.step_count} saved: {action_type}")
 
     def _process_drag_action(self, action_dict: dict, screenshot: np.ndarray):
         """Processa DRAG_AND_DROP."""
@@ -301,14 +295,14 @@ class Designer:
         # Extract features for start
         ocr_start = OCRGenerator.extract(self.ocr_model, bbox_start_image)
         efficientnet_start = EfficientNetGenerator.extract(self.efficientnet_model, bbox_start_image)
-        layoutlm_type_start, layoutlm_conf_start = LayoutLMGenerator.extract(self.layoutlm_model, self.layoutlm_processor, bbox_start_image)
+        layoutlm_type_start, layoutlm_conf_start = LayoutLMGenerator.extract(self.layoutlm_model, self.layoutlm_processor, bbox_start_image, ocr_start)
         sam_mask_start, sam_contours_start = SAMGenerator.extract(self.sam_model, bbox_start_image, start_x - bbox_start['x'], start_y - bbox_start['y'])
         clip_start = CLIPGenerator.extract(self.clip_model, self.clip_preprocess, bbox_start_image)
 
         # Extract features for end
         ocr_end = OCRGenerator.extract(self.ocr_model, bbox_end_image)
         efficientnet_end = EfficientNetGenerator.extract(self.efficientnet_model, bbox_end_image)
-        layoutlm_type_end, layoutlm_conf_end = LayoutLMGenerator.extract(self.layoutlm_model, self.layoutlm_processor, bbox_end_image)
+        layoutlm_type_end, layoutlm_conf_end = LayoutLMGenerator.extract(self.layoutlm_model, self.layoutlm_processor, bbox_end_image, ocr_end)
         sam_mask_end, sam_contours_end = SAMGenerator.extract(self.sam_model, bbox_end_image, end_x - bbox_end['x'], end_y - bbox_end['y'])
         clip_end = CLIPGenerator.extract(self.clip_model, self.clip_preprocess, bbox_end_image)
 
@@ -355,7 +349,7 @@ class Designer:
         )
 
         self.db.add_step(step)
-        logger.info(f"[DB] Step {self.step_count + 1} saved: DRAG_AND_DROP")
+        logger.info(f"[DB] Step {self.step_count} saved: DRAG_AND_DROP")
 
     def _on_menu_requested(self):
         """Callback quando l'utente preme il tasto hotkey menu."""
@@ -448,3 +442,13 @@ class Designer:
             self.db.close()
 
         logger.info(f"[CLEANUP] Done. Database saved to: {self.db_path}")
+
+        # Open database file with default app
+        try:
+            if os.name == 'nt':
+                os.startfile(self.db_path)
+            else:
+                import subprocess
+                subprocess.Popen(['xdg-open', self.db_path])
+        except Exception as e:
+            logger.warning(f"Could not open database file: {e}")

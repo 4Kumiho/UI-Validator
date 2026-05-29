@@ -7,9 +7,10 @@ from kivy.core.window import Window
 from kivy.lang import Builder
 from kivy.clock import Clock
 from threading import Thread
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+from pathlib import Path
 
-# Add project root to path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -18,14 +19,8 @@ from Models.model_registry import set_model
 
 Builder.load_file(os.path.join(os.path.dirname(__file__), "loading_screen.kv"))
 
-# Marker files for individual models
-MODELS_CACHE_DIR = os.path.normpath(os.path.expanduser("~/.cache/ui_validator"))
-
-OCR_MARKER = os.path.join(MODELS_CACHE_DIR, "ocr_loaded.json")
-EFFICIENTNET_MARKER = os.path.join(MODELS_CACHE_DIR, "efficientnet_loaded.json")
-LAYOUTLM_MARKER = os.path.join(MODELS_CACHE_DIR, "layoutlm_loaded.json")
-SAM_MARKER = os.path.join(MODELS_CACHE_DIR, "sam_loaded.json")
-CLIP_MARKER = os.path.join(MODELS_CACHE_DIR, "clip_loaded.json")
+MODELS_DIR = Path(__file__).parent.parent.parent / "Models"
+MODELS_DIR.mkdir(exist_ok=True)
 
 
 class LoadingScreen(Screen):
@@ -36,107 +31,209 @@ class LoadingScreen(Screen):
     def on_enter(self):
         Thread(target=self._load_models, daemon=True).start()
 
-    def _load_models(self):
-        # TODO: Models disabled - corporate network blocks external downloads
-        # Uncomment when network access is available
-        """
+    def _setup_ssl_and_env(self):
+        os.environ['TORCH_HOME'] = str(MODELS_DIR / "efficientnet")
+        os.environ['HF_HOME'] = str(MODELS_DIR / "layoutlmv3")
+        os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
+        os.environ['REQUESTS_CA_BUNDLE'] = ''
+        os.environ['CURL_CA_BUNDLE'] = ''
+        os.environ['HTTPX_VERIFY'] = 'False'
+
+        import ssl
+        import urllib3
+        import requests
+
+        ssl._create_default_https_context = ssl._create_unverified_context
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
         try:
-            # Disable SSL verification for downloads (required in some network environments)
-            import ssl
-            ssl._create_default_https_context = ssl._create_unverified_context
-            from paddleocr import PaddleOCR
-            from torchvision import models as tv_models
-            import warnings
+            import httpx
+            import inspect
+            original_request = httpx.Client.request
+            sig = inspect.signature(original_request)
+            valid_params = set(sig.parameters.keys())
 
-            os.makedirs(MODELS_CACHE_DIR, exist_ok=True)
+            def patched_request(self, method, url, **kwargs):
+                kwargs['verify'] = False
+                filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+                return original_request(self, method, url, **filtered_kwargs)
+            httpx.Client.request = patched_request
+        except:
+            pass
 
-            # OCR Loading (PaddleOCR)
-            if not os.path.exists(OCR_MARKER):
-                self._smooth_progress(0.0, 0.2, "Loading PaddleOCR...", 3)
-                print("[*] Loading PaddleOCR from scratch...")
-                ocr = PaddleOCR(use_angle_cls=True, lang='en')
-                set_model('ocr', ocr)
-                print("[OK] PaddleOCR loaded and registered")
-                with open(OCR_MARKER, 'w') as f:
-                    json.dump({'loaded': True}, f)
-            else:
-                print("[OK] PaddleOCR cached")
-                self._smooth_progress(0.0, 0.2, "PaddleOCR cached", 0.4)
-                ocr = PaddleOCR(use_angle_cls=True, lang='en')
-                set_model('ocr', ocr)
+        try:
+            import ssl as ssl_module
+            def create_unverified_context(*args, **kwargs):
+                return ssl_module._create_unverified_context()
+            ssl_module.create_default_context = create_unverified_context
+        except:
+            pass
 
-            # EfficientNetV2-L Loading (superior accuracy)
-            if not os.path.exists(EFFICIENTNET_MARKER):
-                self._smooth_progress(0.2, 0.4, "Loading EfficientNetV2...", 5)
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore")
-                    efficientnet_model = tv_models.efficientnet_v2_l(weights=tv_models.EfficientNet_V2_L_Weights.DEFAULT)
-                set_model('efficientnet', efficientnet_model)
-                print("[OK] EfficientNetV2-L loaded")
-                with open(EFFICIENTNET_MARKER, 'w') as f:
-                    json.dump({'loaded': True}, f)
-            else:
-                print("[OK] EfficientNetV2-L cached")
-                self._smooth_progress(0.2, 0.4, "EfficientNetV2 cached", 0.4)
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore")
-                    efficientnet_model = tv_models.efficientnet_v2_l(weights=tv_models.EfficientNet_V2_L_Weights.DEFAULT)
-                set_model('efficientnet', efficientnet_model)
+        try:
+            import huggingface_hub
+            huggingface_hub.configure(cache_dir=str(MODELS_DIR / "layoutlmv3"))
+        except:
+            pass
 
-            # LayoutLMv3 Loading (UI Layout Understanding)
-            if not os.path.exists(LAYOUTLM_MARKER):
-                self._smooth_progress(0.4, 0.6, "Loading LayoutLMv3...", 5)
-                print("[*] Loading LayoutLMv3 from HuggingFace...")
-                from transformers import AutoProcessor, AutoModelForTokenClassification
-                processor = AutoProcessor.from_pretrained("microsoft/layoutlmv3-base")
-                model = AutoModelForTokenClassification.from_pretrained("microsoft/layoutlmv3-base")
-                set_model('layoutlm', (model, processor))
-                print("[OK] LayoutLMv3 loaded")
-                with open(LAYOUTLM_MARKER, 'w') as f:
-                    json.dump({'loaded': True}, f)
-            else:
-                print("[OK] LayoutLMv3 cached")
-                self._smooth_progress(0.4, 0.6, "LayoutLMv3 cached", 0.4)
-                from transformers import AutoProcessor, AutoModelForTokenClassification
-                processor = AutoProcessor.from_pretrained("microsoft/layoutlmv3-base")
-                model = AutoModelForTokenClassification.from_pretrained("microsoft/layoutlmv3-base")
-                set_model('layoutlm', (model, processor))
+        original_request = requests.adapters.HTTPAdapter.send
 
-            # SAM Loading (Segment Anything - precise edge and corner detection)
-            if not os.path.exists(SAM_MARKER):
-                self._smooth_progress(0.6, 0.8, "Loading SAM...", 8)
-                print("[*] Loading SAM from scratch...")
-                from segment_anything import sam_model_registry, SamPredictor
-                sam = sam_model_registry["vit_l"](checkpoint=None)
-                sam_predictor = SamPredictor(sam)
-                set_model('sam', sam_predictor)
-                print("[OK] SAM loaded and registered")
-                with open(SAM_MARKER, 'w') as f:
-                    json.dump({'loaded': True}, f)
-            else:
-                print("[OK] SAM cached")
-                self._smooth_progress(0.6, 0.8, "SAM cached", 0.4)
-                from segment_anything import sam_model_registry, SamPredictor
-                sam = sam_model_registry["vit_l"](checkpoint=None)
-                sam_predictor = SamPredictor(sam)
-                set_model('sam', sam_predictor)
+        def send_no_timeout(self, request, *args, **kwargs):
+            kwargs['timeout'] = None
+            try:
+                return original_request(self, request, *args, **kwargs)
+            except TypeError as e:
+                if 'headers' in str(e):
+                    kwargs.pop('headers', None)
+                    try:
+                        return original_request(self, request, *args, **kwargs)
+                    except TypeError:
+                        kwargs.clear()
+                        return original_request(self, request)
+                raise
+        requests.adapters.HTTPAdapter.send = send_no_timeout
 
-            # CLIP Loading (ViT-L/14@336px - MAXIMUM semantic understanding available)
-            if not os.path.exists(CLIP_MARKER):
-                self._smooth_progress(0.8, 1.0, "Loading CLIP...", 6)
-                import clip
-                clip_model, clip_preprocess = clip.load("ViT-L/14@336px", device="cpu")
-                set_model('clip', (clip_model, clip_preprocess))
-                print("[OK] CLIP (ViT-L/14@336px) loaded")
-                with open(CLIP_MARKER, 'w') as f:
-                    json.dump({'loaded': True}, f)
-            else:
-                print("[OK] CLIP (ViT-L/14@336px) cached")
-                self._smooth_progress(0.8, 1.0, "CLIP cached", 0.4)
-                import clip
-                clip_model, clip_preprocess = clip.load("ViT-L/14@336px", device="cpu")
-                set_model('clip', (clip_model, clip_preprocess))
+    def _load_ocr(self):
+        import easyocr
+        easyocr_dir = str(MODELS_DIR / "easyocr")
+        (MODELS_DIR / "easyocr").mkdir(exist_ok=True)
+        reader = easyocr.Reader(['en'], model_storage_directory=easyocr_dir)
+        set_model('ocr', reader)
+        return 'ocr'
 
+    def _load_efficientnet(self):
+        import os
+        from torchvision import models as tv_models
+        import warnings
+
+        # Force torch to use Models/efficientnet/ as cache
+        os.environ['TORCH_HOME'] = str(MODELS_DIR / "efficientnet")
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            model = tv_models.efficientnet_v2_l(weights=tv_models.EfficientNet_V2_L_Weights.DEFAULT)
+        set_model('efficientnet', model)
+        return 'efficientnet'
+
+    def _load_layoutlm(self):
+        import warnings
+        import urllib.request
+        import ssl
+        from transformers import AutoProcessor, AutoModelForTokenClassification
+
+        layoutlm_dir = MODELS_DIR / "layoutlmv3"
+        layoutlm_dir.mkdir(exist_ok=True)
+
+        # Pre-download essential files using urllib (bypass requests/httpx issues)
+        ssl._create_default_https_context = ssl._create_unverified_context
+        base_url = "https://huggingface.co/microsoft/layoutlmv3-base/resolve/main/"
+        files_to_download = [
+            "config.json",
+            "preprocessor_config.json",
+            "pytorch_model.bin"
+        ]
+
+        for filename in files_to_download:
+            filepath = layoutlm_dir / filename
+            if not filepath.exists():
+                try:
+                    print(f"[DEBUG] Downloading {filename}...")
+                    urllib.request.urlretrieve(base_url + filename, str(filepath))
+                    print(f"[DEBUG] Downloaded {filename}")
+                except Exception as e:
+                    print(f"[DEBUG] Failed to download {filename}: {str(e)[:60]}")
+
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore")
+                processor = AutoProcessor.from_pretrained(
+                    str(layoutlm_dir),
+                    local_files_only=True,
+                    apply_ocr=False  # Disable OCR, we use EasyOCR instead
+                )
+                model = AutoModelForTokenClassification.from_pretrained(
+                    str(layoutlm_dir),
+                    local_files_only=True
+                )
+            set_model('layoutlm', (model, processor))
+            return 'layoutlm'
+        except Exception as e:
+            set_model('layoutlm', (None, None))
+            return 'layoutlm'
+
+    def _load_sam(self):
+        from segment_anything import sam_model_registry, SamPredictor
+
+        sam_checkpoint = str(MODELS_DIR / "sam" / "sam_vit_b_01ec64.pth")
+        (MODELS_DIR / "sam").mkdir(exist_ok=True)
+
+        if not Path(sam_checkpoint).exists():
+            try:
+                url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
+                import urllib.request
+                urllib.request.urlretrieve(url, sam_checkpoint)
+            except:
+                pass
+
+        if Path(sam_checkpoint).exists():
+            sam = sam_model_registry["vit_b"](checkpoint=sam_checkpoint)
+        else:
+            sam = sam_model_registry["vit_b"](checkpoint=None)
+
+        sam_predictor = SamPredictor(sam)
+        set_model('sam', sam_predictor)
+        return 'sam'
+
+    def _load_clip(self):
+        import clip
+        clip_model, clip_preprocess = clip.load("ViT-L/14@336px", device="cpu")
+        set_model('clip', (clip_model, clip_preprocess))
+        return 'clip'
+
+    def _load_models(self):
+        try:
+            self._update(0.0, "Initializing...")
+            self._setup_ssl_and_env()
+
+            self._update(0.1, "Loading models in parallel...")
+
+            model_tasks = {
+                'ocr': ('EasyOCR', self._load_ocr),
+                'efficientnet': ('EfficientNetV2-L', self._load_efficientnet),
+                'layoutlm': ('LayoutLMv3', self._load_layoutlm),
+                'sam': ('SAM', self._load_sam),
+                'clip': ('CLIP', self._load_clip),
+            }
+
+            completed = 0
+            total_models = len(model_tasks)
+            current_progress = [0.1]
+            target_progress = [0.1]
+
+            def smooth_progress_tick(dt):
+                if current_progress[0] < target_progress[0]:
+                    current_progress[0] += 0.01
+                    if current_progress[0] > target_progress[0]:
+                        current_progress[0] = target_progress[0]
+                    self.progress = current_progress[0]
+
+            progress_ticker = Clock.schedule_interval(smooth_progress_tick, 0.05)
+
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                futures = {executor.submit(func): (name, display_name) for name, (display_name, func) in model_tasks.items()}
+
+                for future in as_completed(futures):
+                    completed += 1
+                    model_name, display_name = futures[future]
+                    try:
+                        result = future.result()
+                        progress = 0.1 + (completed / total_models) * 0.85
+                        target_progress[0] = progress
+                        self.status_text = f"Loading models... {completed}/{total_models}"
+                        print(f"[OK] {display_name} loaded")
+                    except Exception as e:
+                        print(f"[ERROR] {display_name} failed: {str(e)[:100]}")
+
+            progress_ticker.cancel()
             self._update(1.0, "Ready!")
             Clock.schedule_once(lambda dt: self._transition_to_menu(), 0.3)
 
@@ -150,10 +247,6 @@ class LoadingScreen(Screen):
             print(f"{'='*60}\n")
             self._update(1.0, error_msg)
             Clock.schedule_once(lambda dt: self._transition_to_menu(), 3.0)
-        """
-        # Go directly to menu
-        self._update(1.0, "Ready!")
-        Clock.schedule_once(lambda dt: self._transition_to_menu(), 0.3)
 
     def _update(self, value, text):
         Clock.schedule_once(lambda dt: self._apply(value, text))
@@ -161,18 +254,6 @@ class LoadingScreen(Screen):
     def _apply(self, value, text):
         self.progress = value
         self.status_text = text
-
-    def _smooth_progress(self, start, end, text, duration_seconds):
-        """Smoothly animate progress bar from start to end over duration_seconds"""
-        import time
-        steps = int(duration_seconds * 10)  # 10 updates per second
-        step_size = (end - start) / max(steps, 1)
-        step_delay = duration_seconds / max(steps, 1)
-
-        for i in range(steps + 1):
-            current = start + (step_size * i)
-            self._update(min(current, end), text)
-            time.sleep(step_delay)
 
     def _transition_to_menu(self):
         if self.manager:

@@ -58,7 +58,7 @@ Each database contains exactly **ONE session** (ID = 1) due to CHECK constraint.
 | `BBox`                              | String (JSON)   | Absolute screen position. Format: `{"x": 100, "y": 50, "w": 300, "h": 40}` |
 | `BBox_rel_coordinates`              | String (JSON)   | Click position relative to BBox origin. Format: `{"x": 150, "y": 20}` |
 | `BBox_Template`                     | Binary          | PNG crop of detected element (for template matching) |
-| `BBox_OCR_text`                     | String          | Text extracted via PaddleOCR |
+| `BBox_OCR_text`                     | String          | Text extracted via EasyOCR |
 | `BBox_EfficientNet_Features`        | Binary          | 1280-dim feature vector (5120 bytes = 1280 × float32) |
 | `BBox_LayoutLM_Type`                | String          | UI element type: button, input, text, image, etc. |
 | `BBox_LayoutLM_Confidence`          | String (JSON)   | Confidence scores for each element type |
