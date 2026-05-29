@@ -50,44 +50,19 @@ class LayoutLMGenerator:
             if ocr_model is not None:
                 try:
                     results = ocr_model.readtext(bbox_image)
-                    h, w = bbox_image.shape[:2]
-                    box_size = 100
-                    row = 0
-                    col = 0
-                    max_cols = w // box_size
-
                     for bbox_points, text, confidence in results:
                         if text and text.strip():
                             words.append(text)
-
-                            # Generate 100x100 square boxes in grid layout
-                            x_min = col * box_size
-                            y_min = row * box_size
-                            x_max = x_min + box_size
-                            y_max = y_min + box_size
-
-                            # Clamp to image bounds
-                            x_min = max(0, min(x_min, w - box_size))
-                            y_min = max(0, min(y_min, h - box_size))
-                            x_max = min(w, x_max)
-                            y_max = min(h, y_max)
-
-                            boxes.append([x_min, y_min, x_max, y_max])
-
-                            # Move to next grid position
-                            col += 1
-                            if col >= max_cols:
-                                col = 0
-                                row += 1
                 except:
                     pass
 
             # Fallback: use provided ocr_text if no words were extracted
             if not words and ocr_text.strip():
                 words = ocr_text.split()
-                # Create dummy boxes for words (approximate positions)
-                h, w = bbox_image.shape[:2]
-                boxes = [[0, 0, w, h] for _ in words]
+
+            # Create boxes: single 100x100 for all words (entire crop is context)
+            h, w = bbox_image.shape[:2]
+            boxes = [[0, 0, w, h] for _ in words]
 
             # If still no words, return default (no text to classify)
             if not words:
@@ -130,15 +105,11 @@ class LayoutLMGenerator:
             # Usa solo le classi disponibili nel modello
             num_classes = probs.shape[-1]
 
-            # Mappa class_id a nome tipo UI
-            # Per classificazione binaria (2 classi): 0=other, 1=element
-            if num_classes == 2:
-                element_type = "element" if class_id == 1 else "other"
-            else:
-                funsd_label = LayoutLMGenerator.FUNSD_LABELS[class_id] if class_id < len(LayoutLMGenerator.FUNSD_LABELS) else "O"
-                element_type = LayoutLMGenerator.FUNSD_TO_UI.get(funsd_label, "other")
+            # Mappa class_id a nome tipo UI tramite FUNSD labels
+            funsd_label = LayoutLMGenerator.FUNSD_LABELS[class_id] if class_id < len(LayoutLMGenerator.FUNSD_LABELS) else "O"
+            element_type = LayoutLMGenerator.FUNSD_TO_UI.get(funsd_label, "other")
 
-            # Confidence come JSON con score per ogni tipo disponibile
+            # Confidence come JSON con score per ogni FUNSD label
             confidence_dict = {}
             for i in range(num_classes):
                 if i < len(LayoutLMGenerator.FUNSD_LABELS):

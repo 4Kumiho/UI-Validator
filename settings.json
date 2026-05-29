@@ -7,6 +7,6 @@
   },
   "execution": {
     "open_menu_key": "ESC",
-    "end_execution_key_shortcut": "F7"
+    "end_execution_key_shortcut": null
   }
 }

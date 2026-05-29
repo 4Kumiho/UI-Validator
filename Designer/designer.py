@@ -43,7 +43,7 @@ class Designer:
         self.session_name = session_name
         self.save_folder = save_folder
         self.monitor_info = monitor_info
-        self.settings = settings or {'Open_Designer_Menu_key': 'ctrl+shift+d'}
+        self.settings = settings
 
         # Load models from registry
         self.ocr_model = get_model('ocr')
@@ -209,8 +209,7 @@ class Designer:
         pressed_keys = action_dict.get('pressed_keys', [])
 
         # Generate BBox (OCR + SAM merge for icon + text)
-        bbox = BBoxGenerator.generate_smart_bbox_with_ai(screenshot, click_x, click_y,
-                                                         ocr_model=self.ocr_model, sam_model=self.sam_model)
+        bbox = BBoxGenerator.generate_bbox(screenshot, click_x, click_y)
         bbox_image = BBoxGenerator.crop_image(screenshot, bbox)
 
         # Extract features
@@ -282,14 +281,12 @@ class Designer:
         end_x = drag.get('end_x') - self.monitor_info['left']
         end_y = drag.get('end_y') - self.monitor_info['top']
 
-        # Generate BBox for start (OCR + SAM merge)
-        bbox_start = BBoxGenerator.generate_smart_bbox_with_ai(screenshot, start_x, start_y,
-                                                               ocr_model=self.ocr_model, sam_model=self.sam_model)
+        # Generate BBox for start (100x100 centered at click)
+        bbox_start = BBoxGenerator.generate_bbox(screenshot, start_x, start_y)
         bbox_start_image = BBoxGenerator.crop_image(screenshot, bbox_start)
 
-        # Generate BBox for end (OCR + SAM merge)
-        bbox_end = BBoxGenerator.generate_smart_bbox_with_ai(screenshot, end_x, end_y,
-                                                             ocr_model=self.ocr_model, sam_model=self.sam_model)
+        # Generate BBox for end (100x100 centered at click)
+        bbox_end = BBoxGenerator.generate_bbox(screenshot, end_x, end_y)
         bbox_end_image = BBoxGenerator.crop_image(screenshot, bbox_end)
 
         # Extract features for start
@@ -322,7 +319,7 @@ class Designer:
         }
 
         step = DesignerStep(
-            Step_number=self.step_count + 1,
+            Step_number=self.step_count,
             Action_type='DRAG_AND_DROP',
             Screenshot=screenshot_png.tobytes(),
             Modifier_keys=json.dumps(pressed_keys),
@@ -398,25 +395,41 @@ class Designer:
             logger.warning("No previous step to finalize input")
             return
 
-        # Create INPUT step riusando i dati del passo precedente
+        # Take NEW screenshot (current state after text input)
         screenshot = self._screenshot_buffer
         _, screenshot_png = cv2.imencode('.png', screenshot)
 
+        # Extract bbox coordinates from previous step and crop from NEW screenshot
+        bbox_dict = json.loads(last_step.BBox)
+        bbox_image = BBoxGenerator.crop_image(screenshot, bbox_dict)
+
+        # Extract features from the NEW crop
+        ocr_text = OCRGenerator.extract(self.ocr_model, bbox_image)
+        efficientnet_features = EfficientNetGenerator.extract(self.efficientnet_model, bbox_image)
+        layoutlm_type, layoutlm_conf = LayoutLMGenerator.extract(self.layoutlm_model, self.layoutlm_processor, bbox_image, ocr_text)
+        sam_mask, sam_contours = SAMGenerator.extract(self.sam_model, bbox_image,
+                                                      int(json.loads(last_step.BBox_rel_coordinates)['x']),
+                                                      int(json.loads(last_step.BBox_rel_coordinates)['y']))
+        clip_features = CLIPGenerator.extract(self.clip_model, self.clip_preprocess, bbox_image)
+
+        # Encode new bbox_image as template
+        _, bbox_template_png = cv2.imencode('.png', bbox_image)
+
         input_step = DesignerStep(
-            Step_number=self.step_count + 1,
+            Step_number=self.step_count,
             Action_type='INPUT',
             Screenshot=screenshot_png.tobytes(),
             Modifier_keys=json.dumps([]),
-            BBox=last_step.BBox,
-            BBox_Template=last_step.BBox_Template,
+            BBox=last_step.BBox,  # Keep original bbox coordinates
             BBox_rel_coordinates=last_step.BBox_rel_coordinates,
-            BBox_OCR_text=last_step.BBox_OCR_text,
-            BBox_EfficientNet_Features=last_step.BBox_EfficientNet_Features,
-            BBox_LayoutLM_Type=last_step.BBox_LayoutLM_Type,
-            BBox_LayoutLM_Confidence=last_step.BBox_LayoutLM_Confidence,
-            BBox_SAM_Mask=last_step.BBox_SAM_Mask,
-            BBox_SAM_Contours=last_step.BBox_SAM_Contours,
-            BBox_CLIP_Features=last_step.BBox_CLIP_Features,
+            BBox_Template=bbox_template_png.tobytes(),  # NEW crop from current screenshot
+            BBox_OCR_text=ocr_text,  # NEW OCR from current screenshot
+            BBox_EfficientNet_Features=efficientnet_features,  # NEW features from current screenshot
+            BBox_LayoutLM_Type=layoutlm_type,  # NEW LayoutLM classification
+            BBox_LayoutLM_Confidence=layoutlm_conf,  # NEW confidence
+            BBox_SAM_Mask=sam_mask,  # NEW SAM mask
+            BBox_SAM_Contours=sam_contours,  # NEW SAM contours
+            BBox_CLIP_Features=clip_features,  # NEW CLIP features
             Input_text=self.action_capture.input_text,
             Enter_After_Input_text=1 if self.action_capture.input_text.endswith('\n') else 0
         )

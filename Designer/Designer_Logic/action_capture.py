@@ -259,9 +259,9 @@ class ActionCapture:
             self._update_pressed_keys(key, pressed=True)
 
             # Check for menu hotkey
-            menu_key = self.settings.get('Open_Designer_Menu_key')
+            menu_key = self.settings.get('open_menu_key') if self.settings else None
             if not menu_key:
-                logger.error("FATAL: Missing 'Open_Designer_Menu_key' in settings")
+                logger.error("FATAL: Missing 'open_menu_key' in settings")
                 return
             if self._check_menu_hotkey(menu_key):
                 logger.info("✓ Menu hotkey detected")

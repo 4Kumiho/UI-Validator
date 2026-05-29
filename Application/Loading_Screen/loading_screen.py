@@ -152,8 +152,10 @@ class LoadingScreen(Screen):
                 )
                 model = AutoModelForTokenClassification.from_pretrained(
                     str(layoutlm_dir),
-                    local_files_only=True
+                    local_files_only=True,
+                    num_labels=11  # FUNSD has 11 token classes
                 )
+            print(f"[DEBUG] LayoutLMv3 loaded with num_labels={model.config.num_labels if hasattr(model.config, 'num_labels') else 'UNKNOWN'}")
             set_model('layoutlm', (model, processor))
             return 'layoutlm'
         except Exception as e:
