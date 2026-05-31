@@ -23,6 +23,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
 from kivy.uix.checkbox import CheckBox
+from kivy.uix.dropdown import DropDown
 from kivy.uix.image import Image as KivyImage
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
@@ -39,6 +40,8 @@ from Designer.Designer_Logic.clip_generator import CLIPGenerator
 
 
 Builder.load_file(os.path.join(os.path.dirname(__file__), "summary_designer_screen.kv"))
+
+_ACTION_TYPES = ['SINGLE_CLICK', 'DOUBLE_CLICK', 'RIGHT_CLICK', 'INPUT', 'DRAG_AND_DROP', 'SCROLL']
 
 
 class BBoxImageEditor(Image):
@@ -231,10 +234,26 @@ class BBoxImageEditor(Image):
 
         return click_point
 
+    def _near_edges(self, img_x, img_y, bbox, thresh, prefix):
+        """Ritorna la modalità resize se il touch è vicino a un bordo/angolo della bbox, altrimenti None."""
+        x, y, w, h = bbox['x'], bbox['y'], bbox['w'], bbox['h']
+        nl = abs(img_x - x) < thresh
+        nr = abs(img_x - (x + w)) < thresh
+        nt = abs(img_y - y) < thresh
+        nb = abs(img_y - (y + h)) < thresh
+        if nl and nt: return f"resize_{prefix}tl"
+        if nr and nt: return f"resize_{prefix}tr"
+        if nl and nb: return f"resize_{prefix}bl"
+        if nr and nb: return f"resize_{prefix}br"
+        if nl and not (nt or nb): return f"resize_{prefix}left"
+        if nr and not (nt or nb): return f"resize_{prefix}right"
+        if nt and not (nl or nr): return f"resize_{prefix}top"
+        if nb and not (nl or nr): return f"resize_{prefix}bottom"
+        return None
+
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
             return False
-
         if not self._bbox:
             return False
 
@@ -242,120 +261,69 @@ class BBoxImageEditor(Image):
         if img_x is None:
             return False
 
-        bbox = self._bbox
-        click_point_threshold = 15
-        corner_threshold = 30
+        # Threshold scala-dipendenti: dp in widget pixels → image pixels
+        result = self._get_img_rect()
+        scale = result[4] if result[4] else 1.0
+        cp_thresh = max(15, dp(12) / scale)
+        edge_thresh = max(15, dp(14) / scale)
 
+        # 1. Click points (priorità massima, entrambi controllati prima dei bordi)
         if self._click_point:
-            cp_x = self._click_point['x']
-            cp_y = self._click_point['y']
-            if abs(img_x - cp_x) < click_point_threshold and abs(img_y - cp_y) < click_point_threshold:
+            cp_x, cp_y = self._click_point['x'], self._click_point['y']
+            if abs(img_x - cp_x) < cp_thresh and abs(img_y - cp_y) < cp_thresh:
                 self._drag_mode = "move_click"
                 self._last_touch_pos = (img_x, img_y)
                 return True
 
-        edge_threshold = 20
+        if self._bbox_drag and self._click_drag:
+            cd_x, cd_y = self._click_drag['x'], self._click_drag['y']
+            if abs(img_x - cd_x) < cp_thresh and abs(img_y - cd_y) < cp_thresh:
+                self._drag_mode = "move_drag_click"
+                self._last_touch_pos = (img_x, img_y)
+                return True
 
-        near_left = abs(img_x - bbox['x']) < edge_threshold
-        near_right = abs(img_x - (bbox['x'] + bbox['w'])) < edge_threshold
-        near_top = abs(img_y - bbox['y']) < edge_threshold
-        near_bottom = abs(img_y - (bbox['y'] + bbox['h'])) < edge_threshold
-
-        if near_left and near_top:
-            self._drag_mode = "resize_tl"
-            self._last_touch_pos = (img_x, img_y)
-            return True
-        if near_right and near_top:
-            self._drag_mode = "resize_tr"
-            self._last_touch_pos = (img_x, img_y)
-            return True
-        if near_left and near_bottom:
-            self._drag_mode = "resize_bl"
-            self._last_touch_pos = (img_x, img_y)
-            return True
-        if near_right and near_bottom:
-            self._drag_mode = "resize_br"
+        # 2. Bordi bbox principale
+        mode = self._near_edges(img_x, img_y, self._bbox, edge_thresh, '')
+        if mode:
+            self._drag_mode = mode
             self._last_touch_pos = (img_x, img_y)
             return True
 
-        if near_left and not (near_top or near_bottom):
-            self._drag_mode = "resize_left"
-            self._last_touch_pos = (img_x, img_y)
-            return True
-        if near_right and not (near_top or near_bottom):
-            self._drag_mode = "resize_right"
-            self._last_touch_pos = (img_x, img_y)
-            return True
-        if near_top and not (near_left or near_right):
-            self._drag_mode = "resize_top"
-            self._last_touch_pos = (img_x, img_y)
-            return True
-        if near_bottom and not (near_left or near_right):
-            self._drag_mode = "resize_bottom"
+        # 3. Bordi bbox drag
+        if self._bbox_drag:
+            mode = self._near_edges(img_x, img_y, self._bbox_drag, edge_thresh, 'drag_')
+            if mode:
+                self._drag_mode = mode
+                self._last_touch_pos = (img_x, img_y)
+                return True
+
+        # 4. Interno bbox: se entrambe contengono il touch, sceglie per distanza al centro
+        bbox = self._bbox
+        inside_main = bbox['x'] <= img_x <= bbox['x'] + bbox['w'] and bbox['y'] <= img_y <= bbox['y'] + bbox['h']
+        inside_drag = (self._bbox_drag is not None and
+                       self._bbox_drag['x'] <= img_x <= self._bbox_drag['x'] + self._bbox_drag['w'] and
+                       self._bbox_drag['y'] <= img_y <= self._bbox_drag['y'] + self._bbox_drag['h'])
+
+        if inside_main and inside_drag:
+            cx_m = bbox['x'] + bbox['w'] / 2
+            cy_m = bbox['y'] + bbox['h'] / 2
+            cx_d = self._bbox_drag['x'] + self._bbox_drag['w'] / 2
+            cy_d = self._bbox_drag['y'] + self._bbox_drag['h'] / 2
+            dist_m = (img_x - cx_m) ** 2 + (img_y - cy_m) ** 2
+            dist_d = (img_x - cx_d) ** 2 + (img_y - cy_d) ** 2
+            self._drag_mode = "move_drag_bbox" if dist_d <= dist_m else "move_bbox"
             self._last_touch_pos = (img_x, img_y)
             return True
 
-        inside = bbox['x'] <= img_x <= bbox['x'] + bbox['w'] and bbox['y'] <= img_y <= bbox['y'] + bbox['h']
-        if inside and not (near_left or near_right or near_top or near_bottom):
+        if inside_main:
             self._drag_mode = "move_bbox"
             self._last_touch_pos = (img_x, img_y)
             return True
 
-        if self._bbox_drag:
-            bbox_drag = self._bbox_drag
-
-            if self._click_drag:
-                cd_x = self._click_drag['x']
-                cd_y = self._click_drag['y']
-                if abs(img_x - cd_x) < click_point_threshold and abs(img_y - cd_y) < click_point_threshold:
-                    self._drag_mode = "move_drag_click"
-                    self._last_touch_pos = (img_x, img_y)
-                    return True
-
-            near_left_d = abs(img_x - bbox_drag['x']) < edge_threshold
-            near_right_d = abs(img_x - (bbox_drag['x'] + bbox_drag['w'])) < edge_threshold
-            near_top_d = abs(img_y - bbox_drag['y']) < edge_threshold
-            near_bottom_d = abs(img_y - (bbox_drag['y'] + bbox_drag['h'])) < edge_threshold
-
-            if near_left_d and near_top_d:
-                self._drag_mode = "resize_drag_tl"
-                self._last_touch_pos = (img_x, img_y)
-                return True
-            if near_right_d and near_top_d:
-                self._drag_mode = "resize_drag_tr"
-                self._last_touch_pos = (img_x, img_y)
-                return True
-            if near_left_d and near_bottom_d:
-                self._drag_mode = "resize_drag_bl"
-                self._last_touch_pos = (img_x, img_y)
-                return True
-            if near_right_d and near_bottom_d:
-                self._drag_mode = "resize_drag_br"
-                self._last_touch_pos = (img_x, img_y)
-                return True
-
-            if near_left_d and not (near_top_d or near_bottom_d):
-                self._drag_mode = "resize_drag_left"
-                self._last_touch_pos = (img_x, img_y)
-                return True
-            if near_right_d and not (near_top_d or near_bottom_d):
-                self._drag_mode = "resize_drag_right"
-                self._last_touch_pos = (img_x, img_y)
-                return True
-            if near_top_d and not (near_left_d or near_right_d):
-                self._drag_mode = "resize_drag_top"
-                self._last_touch_pos = (img_x, img_y)
-                return True
-            if near_bottom_d and not (near_left_d or near_right_d):
-                self._drag_mode = "resize_drag_bottom"
-                self._last_touch_pos = (img_x, img_y)
-                return True
-
-            inside_drag = bbox_drag['x'] <= img_x <= bbox_drag['x'] + bbox_drag['w'] and bbox_drag['y'] <= img_y <= bbox_drag['y'] + bbox_drag['h']
-            if inside_drag and not (near_left_d or near_right_d or near_top_d or near_bottom_d):
-                self._drag_mode = "move_drag_bbox"
-                self._last_touch_pos = (img_x, img_y)
-                return True
+        if inside_drag:
+            self._drag_mode = "move_drag_bbox"
+            self._last_touch_pos = (img_x, img_y)
+            return True
 
         return False
 
@@ -901,6 +869,7 @@ class SummaryDesignerScreen(Screen):
             traceback.print_exc()
 
     def _populate_edit_panel(self, step):
+        self.ids.action_dropdown.text = step.Action_type
         self._updating_ui = True
         try:
             self._step_clean_values = {
@@ -1088,22 +1057,18 @@ class SummaryDesignerScreen(Screen):
             self._updating_ui = False
 
     def _update_save_button_style(self, widget, value):
-        if value:
-            self.ids.save_step_button.color = (0.5, 0.5, 0.5, 1)
-            self.ids.save_step_button.canvas.before.clear()
-            with self.ids.save_step_button.canvas.before:
+        btn = self.ids.save_step_button
+        btn.canvas.before.clear()
+        if value:  # disabled
+            btn.color = (0.4, 0.4, 0.4, 1)
+            with btn.canvas.before:
                 Color(0.3, 0.3, 0.3, 1)
-                RoundedRectangle(pos=self.ids.save_step_button.pos,
-                                size=self.ids.save_step_button.size,
-                                radius=[dp(8)])
-        else:
-            self.ids.save_step_button.color = (1, 1, 1, 1)
-            self.ids.save_step_button.canvas.before.clear()
-            with self.ids.save_step_button.canvas.before:
-                Color(0.4, 0.6, 1.0, 1)
-                RoundedRectangle(pos=self.ids.save_step_button.pos,
-                                size=self.ids.save_step_button.size,
-                                radius=[dp(8)])
+                Line(rounded_rectangle=(btn.x, btn.y, btn.width, btn.height, dp(8)), width=1.5)
+        else:  # enabled
+            btn.color = (1, 1, 1, 1)
+            with btn.canvas.before:
+                Color(0.35, 0.53, 1.0, 1)
+                Line(rounded_rectangle=(btn.x, btn.y, btn.width, btn.height, dp(8)), width=1.5)
 
     def _on_bbox_changed(self, bbox, click_point):
         if not self._selected_step:
@@ -1344,6 +1309,228 @@ class SummaryDesignerScreen(Screen):
             print(f"Error parsing numeric fields: {e}")
         except Exception as e:
             print(f"Error saving step: {e}")
+
+    def open_screenshot_picker(self):
+        if not self._selected_step:
+            return
+
+        from kivy.uix.behaviors import ButtonBehavior
+
+        class _ThumbBtn(ButtonBehavior, BoxLayout):
+            pass
+
+        popup_ref = [None]
+
+        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
+
+        # --- Monitor capture ---
+        content.add_widget(Label(
+            text="[b]Cattura da monitor[/b]",
+            markup=True, font_size='12sp', color=(0.7, 0.7, 0.85, 1),
+            size_hint_y=None, height=dp(24), halign='left',
+        ))
+
+        monitor_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(44), spacing=dp(8))
+        try:
+            from mss import mss as _mss
+            with _mss() as sct:
+                for i, mon in enumerate(sct.monitors[1:]):
+                    m = mon.copy()
+                    btn = Button(
+                        text=f"Monitor {i + 1}  ({m['width']}×{m['height']})",
+                        font_size='11sp',
+                        background_normal='',
+                        background_color=(0.08, 0.08, 0.12, 1),
+                        color=(0.9, 0.9, 1.0, 1),
+                    )
+                    btn.bind(on_release=lambda b, mon=m: self._capture_monitor_for_step(mon, popup_ref[0]))
+                    monitor_row.add_widget(btn)
+        except Exception as e:
+            monitor_row.add_widget(Label(text=f"Errore monitor: {e}", font_size='10sp', color=(1, 0.4, 0.4, 1)))
+        content.add_widget(monitor_row)
+
+        # --- Steps thumbnails ---
+        content.add_widget(Label(
+            text="[b]Usa screenshot da un altro step[/b]",
+            markup=True, font_size='12sp', color=(0.7, 0.7, 0.85, 1),
+            size_hint_y=None, height=dp(24), halign='left',
+        ))
+
+        scroll = ScrollView(size_hint=(1, 1))
+        grid = GridLayout(cols=4, spacing=dp(8), size_hint_y=None, padding=dp(4))
+        grid.bind(minimum_height=grid.setter('height'))
+
+        for step in self._steps:
+            if not step.Screenshot or step.Step_number == self._selected_step.Step_number:
+                continue
+            try:
+                nparr = np.frombuffer(step.Screenshot, np.uint8)
+                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                if img is None:
+                    continue
+                scale = 100 / max(img.shape[0], img.shape[1])
+                th, tw = int(img.shape[0] * scale), int(img.shape[1] * scale)
+                thumb = cv2.resize(img, (tw, th))
+                rgb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
+                tex = Texture.create(size=(tw, th), colorfmt='rgb')
+                tex.blit_buffer(rgb.tobytes(), colorfmt='rgb', bufferfmt='ubyte')
+
+                item = _ThumbBtn(orientation='vertical', size_hint_y=None, height=dp(100), spacing=dp(2))
+                item.add_widget(KivyImage(texture=tex, size_hint_y=None, height=dp(76)))
+                item.add_widget(Label(
+                    text=f"#{step.Step_number}  {step.Action_type}",
+                    font_size='10sp', color=(0.85, 0.85, 0.85, 1),
+                    size_hint_y=None, height=dp(18),
+                ))
+                item.bind(on_release=lambda b, s=step: self._use_step_screenshot(s, popup_ref[0]))
+                grid.add_widget(item)
+            except Exception:
+                continue
+
+        scroll.add_widget(grid)
+        content.add_widget(scroll)
+
+        popup_ref[0] = Popup(
+            title="Seleziona Screenshot",
+            content=content,
+            size_hint=(0.85, 0.85),
+        )
+        popup_ref[0].open()
+
+    def _capture_monitor_for_step(self, monitor, popup):
+        try:
+            from mss import mss as _mss
+            with _mss() as sct:
+                shot = sct.grab(monitor)
+                h, w = shot.height, shot.width
+                img_rgb = np.frombuffer(shot.rgb, dtype=np.uint8).reshape((h, w, 3))
+                img_bgr = img_rgb[:, :, ::-1]
+                _, png_bytes = cv2.imencode('.png', img_bgr)
+                self._selected_step.Screenshot = png_bytes.tobytes()
+            if popup:
+                popup.dismiss()
+            self._load_step(self._selected_step)
+            print(f"[SCREENSHOT] Monitor catturato per step #{self._selected_step.Step_number}")
+        except Exception as e:
+            print(f"[SCREENSHOT] Errore cattura monitor: {e}")
+
+    def _use_step_screenshot(self, source_step, popup):
+        try:
+            self._selected_step.Screenshot = source_step.Screenshot
+            if popup:
+                popup.dismiss()
+            self._load_step(self._selected_step)
+            print(f"[SCREENSHOT] Usato screenshot da step #{source_step.Step_number}")
+        except Exception as e:
+            print(f"[SCREENSHOT] Errore: {e}")
+
+    def open_action_picker(self):
+        if not self._selected_step:
+            return
+
+        dd = DropDown(auto_width=False, width=dp(160))
+
+        for action in _ACTION_TYPES:
+            is_current = (action == self._selected_step.Action_type)
+            btn = Button(
+                text=action,
+                size_hint_y=None,
+                height=dp(36),
+                font_size='11sp',
+                bold=is_current,
+                background_normal='',
+                background_color=(0.12, 0.12, 0.22, 1),
+                color=(0.35, 0.53, 1.0, 1) if is_current else (0.9, 0.9, 1.0, 1),
+            )
+            btn.bind(on_release=lambda b, a=action: self._on_action_selected(dd, a))
+            dd.add_widget(btn)
+
+        dd.open(self.ids.action_dropdown)
+
+    def _on_action_selected(self, dropdown, new_action):
+        dropdown.dismiss()
+        if self._selected_step and new_action != self._selected_step.Action_type:
+            self.change_action_type(new_action)
+
+    def change_action_type(self, new_type):
+        if not self._selected_step or not self._db:
+            return
+
+        step = self._selected_step
+        old_type = step.Action_type
+        step.Action_type = new_type
+
+        # Se si passa a INPUT, il click point non esiste
+        if new_type == 'INPUT':
+            step.BBox_rel_coordinates = None
+
+        # Se si passa DA INPUT a un tipo con click point, centra il click sulla bbox
+        if old_type == 'INPUT' and new_type in ('SINGLE_CLICK', 'DOUBLE_CLICK', 'RIGHT_CLICK', 'SCROLL', 'DRAG_AND_DROP'):
+            if step.BBox:
+                try:
+                    bbox = json.loads(step.BBox)
+                    step.BBox_rel_coordinates = json.dumps({'x': bbox['w'] // 2, 'y': bbox['h'] // 2})
+                except Exception:
+                    pass
+
+        # Gestione campi drag
+        if new_type == 'DRAG_AND_DROP' and old_type != 'DRAG_AND_DROP':
+            # BBox_drag: 100x100 centrata nell'immagine
+            size = 100
+            cx, cy = 0, 0
+            if step.Screenshot:
+                try:
+                    nparr = np.frombuffer(step.Screenshot, np.uint8)
+                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    if img is not None:
+                        ih, iw = img.shape[:2]
+                        cx, cy = (iw - size) // 2, (ih - size) // 2
+                except Exception:
+                    pass
+            drag_bbox = {'x': cx, 'y': cy, 'w': size, 'h': size}
+            step.BBox_drag = json.dumps(drag_bbox)
+            step.BBox_drag_rel_coordinates = json.dumps({'x': size // 2, 'y': size // 2})
+        elif new_type != 'DRAG_AND_DROP':
+            step.BBox_drag = None
+            step.BBox_drag_Template = None
+            step.BBox_drag_rel_coordinates = None
+            step.BBox_drag_OCR_text = None
+            step.BBox_drag_EfficientNet_Features = None
+            step.BBox_drag_LayoutLM_Type = None
+            step.BBox_drag_LayoutLM_Confidence = None
+            step.BBox_drag_CLIP_Features = None
+            step.BBox_drag_SAM_Mask = None
+            step.BBox_drag_SAM_Contours = None
+
+        # Pulisci campi input se non è INPUT
+        if new_type != 'INPUT':
+            step.Input_text = None
+            step.Enter_After_Input_text = None
+
+        # Pulisci campi scroll se non è SCROLL
+        if new_type != 'SCROLL':
+            step.Scroll_DX = None
+            step.Scroll_DY = None
+
+        self._db.update_step(step)
+        print(f"[ACTION] Step #{step.Step_number}: {old_type} → {new_type}")
+
+        # Ricarica dallo stato persistito
+        step_num = step.Step_number
+        self._steps = self._db.get_steps()
+        for s in self._steps:
+            if s.Step_number == step_num:
+                self._selected_step = s
+                break
+
+        # Ricostruisci lista (aggiorna label action type nella riga)
+        self._load_steps_list()
+        row = self._step_rows.get(step_num)
+        if row:
+            row.set_selected(True)
+            self._selected_row = row
+
+        self._load_step(self._selected_step)
 
     def go_home(self):
         self.manager.current = "menu"

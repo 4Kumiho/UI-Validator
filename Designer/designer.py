@@ -68,6 +68,7 @@ class Designer:
         self.mini_ui = None
         self.action_capture = None
         self.menu_thread = None
+        self._menu_open = False
 
         # Screenshot buffer
         self._screenshot_buffer = None
@@ -350,6 +351,10 @@ class Designer:
 
     def _on_menu_requested(self):
         """Callback quando l'utente preme il tasto hotkey menu."""
+        if self._menu_open:
+            print("[MENU] Menu already open")
+            return
+        self._menu_open = True
         self.recording_active = False
         self.mini_ui.set_saving()
         self.action_capture.set_menu_open(True)
@@ -366,9 +371,15 @@ class Designer:
 
     def _on_menu_choice(self, choice: str):
         """Callback quando l'utente sceglie dal menu."""
+        self._menu_open = False
         self.action_capture.set_menu_open(False)
 
-        if choice == 'refresh':
+        if choice == 'resume':
+            logger.info("[MENU] Resume recording")
+            self.recording_active = True
+            self.mini_ui.set_ready()
+
+        elif choice == 'refresh':
             logger.info("[MENU] Refresh screenshot")
             self._screenshot_buffer = self.screenshot_handler.capture_full_screen()
             self.recording_active = True

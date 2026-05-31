@@ -207,13 +207,13 @@
                             size_hint_x: 0.5
                             background_color: 0, 0, 0, 0
                             color: 1, 1, 1, 1
+                            on_release: root.open_action_picker()
                             canvas.before:
                                 Color:
-                                    rgba: 0.35, 0.53, 1.0, 0.85
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [dp(6)]
+                                    rgba: 0.35, 0.53, 1.0, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                    width: 1.5
 
                         Button:
                             id: screenshot_dropdown
@@ -222,13 +222,13 @@
                             size_hint_x: 0.5
                             background_color: 0, 0, 0, 0
                             color: 1, 1, 1, 1
+                            on_release: root.open_screenshot_picker()
                             canvas.before:
                                 Color:
-                                    rgba: 0.35, 0.53, 1.0, 0.85
-                                RoundedRectangle:
-                                    pos: self.pos
-                                    size: self.size
-                                    radius: [dp(6)]
+                                    rgba: 0.35, 0.53, 1.0, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                    width: 1.5
 
                     ScrollView:
                         GridLayout:
@@ -258,14 +258,13 @@
                 id: save_step_button
                 disabled: True
                 background_color: 0, 0, 0, 0
-                color: 0.5, 0.5, 0.5, 1
+                color: 0.4, 0.4, 0.4, 1
                 canvas.before:
                     Color:
                         rgba: 0.3, 0.3, 0.3, 1
-                    RoundedRectangle:
-                        pos: self.pos
-                        size: self.size
-                        radius: [dp(8)]
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                        width: 1.5
                 on_release: root.save_step()
 
             Button:
@@ -276,9 +275,8 @@
                 color: 1, 1, 1, 1
                 canvas.before:
                     Color:
-                        rgba: 0.35, 0.53, 1.0, 0.85
-                    RoundedRectangle:
-                        pos: self.pos
-                        size: self.size
-                        radius: [dp(8)]
+                        rgba: 0.35, 0.53, 1.0, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                        width: 1.5
                 on_release: root.go_home()
