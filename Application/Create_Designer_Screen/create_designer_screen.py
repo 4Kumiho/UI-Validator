@@ -185,6 +185,9 @@ class CreateDesignerScreen(Screen):
                 designer = Designer(session_name, save_folder, monitor_info, settings)
                 designer.start()
                 self.restore_window()
+                db_path = os.path.join(save_folder, session_name, f"{session_name}_designer.db")
+                from kivy.clock import Clock
+                Clock.schedule_once(lambda dt: self._open_summary(db_path, session_name), 0)
 
             threading.Thread(target=run_designer, daemon=True).start()
 
@@ -193,6 +196,16 @@ class CreateDesignerScreen(Screen):
             print(f"[Error] {e}")
             import traceback
             traceback.print_exc()
+
+    def _open_summary(self, db_path, session_name):
+        """Navigate to summary screen after designer session ends"""
+        try:
+            summary = self.manager.get_screen('summary_designer')
+            summary.load_session(db_path, session_name)
+            self.manager.current = 'summary_designer'
+        except Exception as e:
+            print(f"[Error] Opening summary: {e}")
+            self.error_msg = f"Error opening summary: {str(e)}"
 
     # ===== Window Management =====
     def minimize_window(self):

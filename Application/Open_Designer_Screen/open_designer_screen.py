@@ -33,16 +33,31 @@ class OpenDesignerScreen(Screen):
             print(f"[Error] Browse folder: {e}")
 
     def start_opening(self):
-        """Validate input and show validation message"""
+        """Validate input and open designer session summary"""
         designer_folder = self.ids.designer_folder_input.text.strip()
 
-        # Reset error
         self.error_msg = ""
 
-        # Validation
         if not designer_folder:
             self.error_msg = "Designer folder is required"
             return
 
-        # Validation OK
-        self.error_msg = "✓ Validation OK - Opening designer session"
+        try:
+            from pathlib import Path
+            folder = Path(designer_folder)
+            db_files = list(folder.glob("*.db"))
+
+            if not db_files:
+                self.error_msg = "No .db file found in selected folder"
+                return
+
+            db_path = str(db_files[0])
+            session_name = db_files[0].stem.replace("_designer", "")
+
+            summary = self.manager.get_screen('summary_designer')
+            summary.load_session(db_path, session_name)
+            self.manager.current = 'summary_designer'
+
+        except Exception as e:
+            self.error_msg = f"Error opening session: {str(e)}"
+            print(f"[Error] {e}")

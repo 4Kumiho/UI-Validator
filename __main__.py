@@ -9,6 +9,7 @@ from Application.Loading_Screen.loading_screen import LoadingScreen
 from Application.Menu_Screen.menu_screen import MenuScreen
 from Application.Settings_Screen.settings_screen import SettingsScreen
 from Application.Create_Designer_Screen.create_designer_screen import CreateDesignerScreen
+from Application.Summary_Designer_Screen.summary_designer_screen import SummaryDesignerScreen
 from Application.Open_Designer_Screen.open_designer_screen import OpenDesignerScreen
 from Application.Aggregate_Designer_Screen.aggregate_designer_screen import AggregateDesignerScreen
 from Application.Create_Execution_Screen.create_execution_screen import CreateExecutionScreen
@@ -24,7 +25,7 @@ class UIValidatorApp(App):
 
     def build(self):
         self.title = "UI-Validator"
-        self.icon = os.path.join(PROJECT_ROOT, 'Application', '_Icons', 'Icon.png')
+        self.icon = os.path.join(PROJECT_ROOT, 'Application', '_Icons', 'App_Icon.png')
 
         Window.clearcolor = (0.05, 0.05, 0.10, 1)
 
@@ -33,6 +34,7 @@ class UIValidatorApp(App):
         sm.add_widget(MenuScreen(name=MenuScreen.SCREEN_NAME))
         sm.add_widget(SettingsScreen(name=SettingsScreen.SCREEN_NAME))
         sm.add_widget(CreateDesignerScreen(name=CreateDesignerScreen.SCREEN_NAME))
+        sm.add_widget(SummaryDesignerScreen(name=SummaryDesignerScreen.SCREEN_NAME))
         sm.add_widget(OpenDesignerScreen(name=OpenDesignerScreen.SCREEN_NAME))
         sm.add_widget(AggregateDesignerScreen(name=AggregateDesignerScreen.SCREEN_NAME))
         sm.add_widget(CreateExecutionScreen(name=CreateExecutionScreen.SCREEN_NAME))

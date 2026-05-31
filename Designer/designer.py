@@ -455,13 +455,3 @@ class Designer:
             self.db.close()
 
         logger.info(f"[CLEANUP] Done. Database saved to: {self.db_path}")
-
-        # Open database file with default app
-        try:
-            if os.name == 'nt':
-                os.startfile(self.db_path)
-            else:
-                import subprocess
-                subprocess.Popen(['xdg-open', self.db_path])
-        except Exception as e:
-            logger.warning(f"Could not open database file: {e}")

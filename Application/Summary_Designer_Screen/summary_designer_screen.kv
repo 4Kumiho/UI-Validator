@@ -1,0 +1,284 @@
+#:import dp kivy.metrics.dp
+
+<SummaryDesignerScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.05, 0.05, 0.07, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 0
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(50)
+            padding: [dp(20), dp(10)]
+            spacing: dp(12)
+            canvas.before:
+                Color:
+                    rgba: 0.05, 0.05, 0.07, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Button:
+                text: "< Back"
+                size_hint_x: None
+                width: dp(80)
+                font_size: "11sp"
+                bold: True
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                on_release: root.go_home()
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Line:
+                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                        width: 1.5
+
+            Label:
+                text: "Designer - Summary Screen"
+                font_size: "16sp"
+                bold: True
+                color: 1, 1, 1, 1
+                halign: "left"
+                valign: "center"
+                text_size: self.size
+
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: dp(12)
+            padding: [dp(12), dp(12), dp(12), dp(12)]
+
+            BoxLayout:
+                orientation: "vertical"
+                size_hint_x: 0.80
+
+                BBoxImageEditor:
+                    id: screenshot_image
+
+            BoxLayout:
+                orientation: "vertical"
+                size_hint_x: 0.20
+                spacing: dp(4)
+
+                Label:
+                    text: f"[b]Step ({root.steps_count})[/b]"
+                    markup: True
+                    font_size: "12sp"
+                    color: 0.7, 0.7, 0.85, 1
+                    size_hint_y: None
+                    height: dp(20)
+                    halign: "left"
+
+                ScrollView:
+                    size_hint_y: 0.6
+                    GridLayout:
+                        id: steps_grid
+                        cols: 1
+                        spacing: dp(4)
+                        size_hint_y: None
+                        height: self.minimum_height
+
+                BoxLayout:
+                    orientation: "vertical"
+                    size_hint_y: 0.4
+                    spacing: dp(4)
+                    canvas.before:
+                        Color:
+                            rgba: 0.08, 0.08, 0.12, 1
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+
+                    BoxLayout:
+                        id: input_box_container
+                        orientation: "horizontal"
+                        size_hint_y: None
+                        height: dp(28)
+                        spacing: dp(4)
+                        padding: dp(2)
+
+                        Label:
+                            id: input_label
+                            text: "Input:"
+                            font_size: "10sp"
+                            color: (0.7, 0.7, 0.85, 1)
+                            opacity: 0
+                            disabled: True
+                            size_hint_x: None
+                            width: dp(30)
+                            halign: "center"
+
+                        TextInput:
+                            id: input_text_input
+                            font_size: "10sp"
+                            multiline: False
+                            opacity: 0
+                            disabled: True
+                            size_hint_x: 1
+                            on_text_validate: root.autosave_input_text()
+
+                    BoxLayout:
+                        orientation: "horizontal"
+                        size_hint_y: None
+                        height: dp(28)
+                        spacing: dp(4)
+                        padding: dp(2)
+
+                        Label:
+                            id: scroll_dx_label
+                            text: "DX:"
+                            font_size: "10sp"
+                            color: (0.7, 0.7, 0.85, 1)
+                            opacity: 0
+                            disabled: True
+                            size_hint_x: None
+                            width: dp(20)
+                            halign: "center"
+
+                        TextInput:
+                            id: scroll_dx_input
+                            font_size: "10sp"
+                            multiline: False
+                            input_filter: "int"
+                            opacity: 0
+                            disabled: True
+                            size_hint_x: 0.3
+
+                        Label:
+                            id: scroll_dy_label
+                            text: "DY:"
+                            font_size: "10sp"
+                            color: (0.7, 0.7, 0.85, 1)
+                            opacity: 0
+                            disabled: True
+                            size_hint_x: None
+                            width: dp(20)
+                            halign: "center"
+
+                        TextInput:
+                            id: scroll_dy_input
+                            font_size: "10sp"
+                            multiline: False
+                            input_filter: "int"
+                            opacity: 0
+                            disabled: True
+                            size_hint_x: 0.3
+                            on_text_validate: root.autosave_scroll_dy()
+
+                    BoxLayout:
+                        id: press_enter_container
+                        orientation: "horizontal"
+                        size_hint_y: None
+                        height: dp(28)
+                        spacing: dp(4)
+                        padding: dp(2)
+
+                        Label:
+                            id: press_enter_label
+                            text: "Press Enter at end:"
+                            font_size: "10sp"
+                            color: (0.7, 0.7, 0.85, 1)
+                            size_hint_x: None
+                            width: dp(100)
+                            halign: "right"
+
+                        CheckBox:
+                            id: press_enter_checkbox
+                            size_hint_x: None
+                            width: dp(30)
+
+                    BoxLayout:
+                        orientation: "horizontal"
+                        size_hint_y: None
+                        height: dp(32)
+                        spacing: dp(3)
+                        padding: dp(2)
+
+                        Button:
+                            id: action_dropdown
+                            text: "Action"
+                            font_size: "11sp"
+                            size_hint_x: 0.5
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            canvas.before:
+                                Color:
+                                    rgba: 0.35, 0.53, 1.0, 0.85
+                                RoundedRectangle:
+                                    pos: self.pos
+                                    size: self.size
+                                    radius: [dp(6)]
+
+                        Button:
+                            id: screenshot_dropdown
+                            text: "Screenshot"
+                            font_size: "11sp"
+                            size_hint_x: 0.5
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            canvas.before:
+                                Color:
+                                    rgba: 0.35, 0.53, 1.0, 0.85
+                                RoundedRectangle:
+                                    pos: self.pos
+                                    size: self.size
+                                    radius: [dp(6)]
+
+                    ScrollView:
+                        GridLayout:
+                            id: info_grid
+                            cols: 1
+                            spacing: dp(2)
+                            size_hint_y: None
+                            height: self.minimum_height
+                            padding: dp(4)
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(60)
+            spacing: dp(12)
+            padding: [dp(16), dp(12), dp(16), dp(12)]
+            canvas.before:
+                Color:
+                    rgba: 0.05, 0.05, 0.07, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Button:
+                text: "Save Updated BBox"
+                bold: True
+                font_size: "13sp"
+                id: save_step_button
+                disabled: True
+                background_color: 0, 0, 0, 0
+                color: 0.5, 0.5, 0.5, 1
+                canvas.before:
+                    Color:
+                        rgba: 0.3, 0.3, 0.3, 1
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(8)]
+                on_release: root.save_step()
+
+            Button:
+                text: "Go Home"
+                bold: True
+                font_size: "13sp"
+                background_color: 0, 0, 0, 0
+                color: 1, 1, 1, 1
+                canvas.before:
+                    Color:
+                        rgba: 0.35, 0.53, 1.0, 0.85
+                    RoundedRectangle:
+                        pos: self.pos
+                        size: self.size
+                        radius: [dp(8)]
+                on_release: root.go_home()
