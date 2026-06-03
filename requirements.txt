@@ -31,3 +31,6 @@ pynput>=1.7.6               # Cross-platform keyboard/mouse control
 
 # Media
 ffpyplayer>=4.5.0           # Audio/video playback (Kivy requirement)
+
+# File dialogs (cross-platform)
+plyer>=2.1.0                # Cross-platform file/folder chooser dialogs

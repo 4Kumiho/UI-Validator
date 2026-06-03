@@ -234,22 +234,11 @@ class CreateDesignerScreen(Screen):
     # ===== Helper Methods =====
     @staticmethod
     def _browse_folder_dialog(title: str = "Select folder") -> str:
-        """Open file dialog to select folder."""
-        result = [""]
-
-        def _open_dialog():
-            try:
-                from tkinter import filedialog, Tk
-                root = Tk()
-                root.withdraw()
-                root.attributes('-topmost', True)
-                folder = filedialog.askdirectory(title=title)
-                result[0] = folder or ""
-                root.destroy()
-            except Exception as e:
-                print(f"[browse_folder] Error: {e}")
-
-        thread = threading.Thread(target=_open_dialog, daemon=False)
-        thread.start()
-        thread.join()
-        return result[0]
+        """Open file dialog to select folder (cross-platform)."""
+        try:
+            from plyer import filechooser
+            result = filechooser.choose_dir(title=title)
+            return result[0] if result else ""
+        except Exception as e:
+            print(f"[browse_folder] Error: {e}")
+            return ""

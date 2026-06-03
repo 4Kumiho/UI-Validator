@@ -2,7 +2,7 @@
   "designer": {
     "open_menu_key": "ESC",
     "refresh_screenshot_key_shortcut": null,
-    "end_input_key_shortcut": null,
+    "end_input_key_shortcut": "f9",
     "end_designer_key_shortcut": null
   },
   "execution": {

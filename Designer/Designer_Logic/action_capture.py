@@ -269,6 +269,16 @@ class ActionCapture:
                     self.on_menu_callback()
                 return
 
+            # Check for end input key shortcut (e.g., F9)
+            end_input_key = self.settings.get('end_input_key_shortcut') if self.settings else None
+            if end_input_key and self.input_active:
+                end_input_key_lower = end_input_key.lower()
+                if self._check_menu_hotkey(end_input_key_lower):
+                    logger.info("✓ End input key detected (F9)")
+                    if self.on_menu_callback:
+                        self.on_menu_callback()  # Open menu with End Input option
+                    return
+
             # Character input (for typing)
             if hasattr(key, 'char') and key.char:
                 self.input_active = True
