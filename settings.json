@@ -7,6 +7,49 @@
   },
   "execution": {
     "open_menu_key": "ESC",
-    "end_execution_key_shortcut": null
+    "end_execution_key_shortcut": null,
+    "perfect_match_threshold": 0.90,
+    "smart_match_threshold": 0.90,
+    "smart_match_slicing_window": 3,
+    "model_weights": {
+      "template": 0.167,
+      "ocr": 0.167,
+      "efficientnet": 0.167,
+      "layoutlm": 0.167,
+      "clip": 0.167,
+      "sam": 0.165
+    },
+    "smart_match_filter_stages": [
+      {
+        "model": "template",
+        "threshold": 0.90,
+        "description": "1st pass: Template (fastest - pixel-based)"
+      },
+      {
+        "model": "ocr",
+        "threshold": 0.90,
+        "description": "2nd pass: OCR (if text available)"
+      },
+      {
+        "model": "efficientnet",
+        "threshold": 0.90,
+        "description": "3rd pass: EfficientNet (features)"
+      },
+      {
+        "model": "layoutlm",
+        "threshold": 0.90,
+        "description": "4th pass: LayoutLM (element type)"
+      },
+      {
+        "model": "clip",
+        "threshold": 0.90,
+        "description": "5th pass: CLIP (multimodal)"
+      },
+      {
+        "model": "sam",
+        "threshold": 0.90,
+        "description": "Final: SAM (segmentation contours)"
+      }
+    ]
   }
 }

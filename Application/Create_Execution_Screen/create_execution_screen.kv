@@ -103,6 +103,53 @@
                             width: 1
 
                 Label:
+                    text: "Designer Database"
+                    font_size: "11sp"
+                    color: 0.48, 0.48, 0.72, 1
+                    size_hint_y: None
+                    height: dp(20)
+                    halign: "left"
+                    text_size: self.size
+
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(8)
+
+                    TextInput:
+                        id: designer_db_input
+                        hint_text: "Choose a database file…"
+                        multiline: False
+                        font_size: "12sp"
+                        background_color: 0.08, 0.08, 0.10, 1
+                        foreground_color: 1, 1, 1, 1
+                        cursor_color: 0.4, 0.85, 0.25, 1
+                        hint_text_color: 0.35, 0.35, 0.50, 1
+                        padding: [dp(12), dp(10)]
+                        canvas.before:
+                            Color:
+                                rgba: 0.4, 0.85, 0.25, 0.3
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1
+
+                    Button:
+                        text: "Browse"
+                        size_hint_x: None
+                        width: dp(70)
+                        font_size: "11sp"
+                        bold: True
+                        background_color: 0, 0, 0, 0
+                        color: 1, 1, 1, 1
+                        on_release: root.browse_designer_db()
+                        canvas.before:
+                            Color:
+                                rgba: 0.4, 0.85, 0.25, 1
+                            Line:
+                                rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                width: 1.5
+
+                Label:
                     text: "Save Location"
                     font_size: "11sp"
                     color: 0.48, 0.48, 0.72, 1
