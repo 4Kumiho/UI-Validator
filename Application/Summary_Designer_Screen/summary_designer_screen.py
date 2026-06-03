@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import threading
 from pathlib import Path
 from pynput import keyboard
 
@@ -27,6 +28,7 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.image import Image as KivyImage
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
+from kivy.uix.progressbar import ProgressBar
 import numpy as np
 import cv2
 
@@ -628,7 +630,7 @@ class SummaryDesignerScreen(Screen):
         self._selected_step = None
         self._selected_row = None
         self._step_clean_values = {}
-        self._bbox_modifications = {}
+        self._ai_recalc_needed = set()
         self._updating_ui = False
         self._keyboard_listener = None
 
@@ -816,7 +818,7 @@ class SummaryDesignerScreen(Screen):
             self._selected_step = step
             print(f"Loading step #{step.Step_number}: {step.Action_type}")
 
-            if self._bbox_modifications:
+            if self._ai_recalc_needed:
                 self.ids.save_step_button.disabled = False
             else:
                 self.ids.save_step_button.disabled = True
@@ -1071,7 +1073,7 @@ class SummaryDesignerScreen(Screen):
                 Line(rounded_rectangle=(btn.x, btn.y, btn.width, btn.height, dp(8)), width=1.5)
 
     def _on_bbox_changed(self, bbox, click_point):
-        if not self._selected_step:
+        if not self._selected_step or not self._db:
             return
 
         bbox_int = {
@@ -1089,17 +1091,26 @@ class SummaryDesignerScreen(Screen):
             }
             self._selected_step.BBox_rel_coordinates = json.dumps(click_rel)
 
-        step_num = self._selected_step.Step_number
-        if step_num not in self._bbox_modifications:
-            self._bbox_modifications[step_num] = {"bbox_modified": False, "bbox_drag_modified": False}
-        self._bbox_modifications[step_num]["bbox_modified"] = True
+        if self._selected_step.Screenshot:
+            try:
+                nparr = np.frombuffer(self._selected_step.Screenshot, np.uint8)
+                screenshot = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                crop = screenshot[bbox_int['y']:bbox_int['y']+bbox_int['h'], bbox_int['x']:bbox_int['x']+bbox_int['w']]
+                _, template_png = cv2.imencode('.png', crop)
+                self._selected_step.BBox_Template = template_png.tobytes()
+            except Exception as e:
+                print(f"Error creating BBox_Template: {e}")
 
+        step_num = self._selected_step.Step_number
+
+        self._db.update_step(self._selected_step)
+        self._ai_recalc_needed.add(step_num)
         self.ids.save_step_button.disabled = False
 
-        print(f"BBox modified for step #{step_num}")
+        print(f"BBox modified for step #{step_num} (auto-saved, needs recalc)")
 
     def _on_bbox_drag_changed(self, bbox_drag, click_drag):
-        if not self._selected_step:
+        if not self._selected_step or not self._db:
             return
 
         bbox_drag_int = {
@@ -1117,14 +1128,23 @@ class SummaryDesignerScreen(Screen):
             }
             self._selected_step.BBox_drag_rel_coordinates = json.dumps(click_drag_rel)
 
-        step_num = self._selected_step.Step_number
-        if step_num not in self._bbox_modifications:
-            self._bbox_modifications[step_num] = {"bbox_modified": False, "bbox_drag_modified": False}
-        self._bbox_modifications[step_num]["bbox_drag_modified"] = True
+        if self._selected_step.Screenshot:
+            try:
+                nparr = np.frombuffer(self._selected_step.Screenshot, np.uint8)
+                screenshot = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                crop = screenshot[bbox_drag_int['y']:bbox_drag_int['y']+bbox_drag_int['h'], bbox_drag_int['x']:bbox_drag_int['x']+bbox_drag_int['w']]
+                _, template_png = cv2.imencode('.png', crop)
+                self._selected_step.BBox_drag_Template = template_png.tobytes()
+            except Exception as e:
+                print(f"Error creating BBox_drag_Template: {e}")
 
+        step_num = self._selected_step.Step_number
+
+        self._db.update_step(self._selected_step)
+        self._ai_recalc_needed.add(step_num)
         self.ids.save_step_button.disabled = False
 
-        print(f"Destination BBox modified for step #{step_num}")
+        print(f"Destination BBox modified for step #{step_num} (auto-saved, needs recalc)")
 
     def _on_input_text_focus(self, widget, focus):
         if not focus:
@@ -1201,75 +1221,111 @@ class SummaryDesignerScreen(Screen):
         except Exception as e:
             print(f"Error auto-saving Step TC: {e}")
 
-    def _recalculate_bbox_models(self, step, crop_image):
+    def _recalculate_bbox_models(self, step, crop_image, is_drag=False):
         if crop_image is None or crop_image.size == 0:
             return
 
         try:
             ocr_model = get_model('ocr')
             efficientnet_model = get_model('efficientnet')
-            layoutlm_model = get_model('layoutlm')
+            layoutlm_data = get_model('layoutlm')
             sam_model = get_model('sam')
-            clip_model = get_model('clip')
+            clip_data = get_model('clip')
 
-            if not all([ocr_model, efficientnet_model, layoutlm_model, sam_model, clip_model]):
+            if not all([ocr_model, efficientnet_model, layoutlm_data, sam_model, clip_data]):
                 print("Not all models loaded, skipping recalculation")
                 return
 
-            ocr_gen = OCRGenerator(ocr_model)
-            efficientnet_gen = EfficientNetGenerator(efficientnet_model)
-            layoutlm_gen = LayoutLMGenerator(layoutlm_model)
-            sam_gen = SAMGenerator(sam_model)
-            clip_gen = CLIPGenerator(clip_model)
+            layoutlm_model, layoutlm_processor = layoutlm_data if isinstance(layoutlm_data, tuple) else (layoutlm_data, None)
+            clip_model, clip_preprocess = clip_data if isinstance(clip_data, tuple) else (clip_data, None)
 
-            step._OCR_text = ocr_gen.generate(crop_image)
-            step._EfficientNet_Features = efficientnet_gen.generate(crop_image)
-            layoutlm_result = layoutlm_gen.generate(crop_image)
-            step._LayoutLM_Type = layoutlm_result.get('type')
-            step._LayoutLM_Confidence = json.dumps(layoutlm_result.get('confidence', {}))
-            step._SAM_Mask = sam_gen.generate(crop_image)
-            step._CLIP_Features = clip_gen.generate(crop_image)
+            prefix = "BBox_drag_" if is_drag else "BBox_"
 
-            print(f"Models recalculated for step #{step.Step_number}")
+            ocr_text = OCRGenerator.extract(ocr_model, crop_image)
+            setattr(step, f"{prefix}OCR_text", ocr_text)
+
+            efficientnet_features = EfficientNetGenerator.extract(efficientnet_model, crop_image)
+            setattr(step, f"{prefix}EfficientNet_Features", efficientnet_features)
+
+            layoutlm_type, layoutlm_conf = LayoutLMGenerator.extract(layoutlm_model, layoutlm_processor, crop_image, ocr_text, ocr_model)
+            setattr(step, f"{prefix}LayoutLM_Type", layoutlm_type)
+            setattr(step, f"{prefix}LayoutLM_Confidence", json.dumps(layoutlm_conf if layoutlm_conf else {}))
+
+            click_x, click_y = 0, 0
+            coord_field = "BBox_drag_rel_coordinates" if is_drag else "BBox_rel_coordinates"
+            if hasattr(step, coord_field) and getattr(step, coord_field):
+                try:
+                    click_rel = json.loads(getattr(step, coord_field))
+                    click_x = int(click_rel.get('x', 0))
+                    click_y = int(click_rel.get('y', 0))
+                except:
+                    pass
+
+            sam_mask, sam_contours = SAMGenerator.extract(sam_model, crop_image, click_x, click_y)
+            setattr(step, f"{prefix}SAM_Mask", sam_mask)
+            setattr(step, f"{prefix}SAM_Contours", sam_contours)
+
+            clip_features = CLIPGenerator.extract(clip_model, clip_preprocess, crop_image)
+            setattr(step, f"{prefix}CLIP_Features", clip_features)
+
+            print(f"Models recalculated for step #{step.Step_number} ({'drag' if is_drag else 'main'})")
 
         except Exception as e:
             print(f"Error recalculating models: {e}")
             import traceback
             traceback.print_exc()
 
-    def save_step(self):
-        if not self._db:
-            print("No database")
-            return
+    def _show_loading_popup(self, total):
+        from kivy.uix.progressbar import ProgressBar
 
+        content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(12))
+
+        progress_label = Label(
+            text=f"Updating BBox Features... (0/{total})",
+            font_size='12sp',
+            color=(0.85, 0.85, 1.0, 1),
+            size_hint_y=None,
+            height=dp(30)
+        )
+        content.add_widget(progress_label)
+
+        progress_bar = ProgressBar(
+            max=100,
+            value=0,
+            size_hint_y=None,
+            height=dp(20)
+        )
+        content.add_widget(progress_bar)
+
+        popup = Popup(
+            title='',
+            content=content,
+            size_hint=(0.6, 0.2),
+            pos_hint={'center_x': 0.5, 'center_y': 0.5},
+        )
+        popup.background_color = (0.05, 0.05, 0.07, 1)
+
+        return popup, progress_label, progress_bar
+
+    def _run_recalculation_thread(self, step_nums, popup, progress_label, progress_bar):
         try:
-            if self._selected_step:
-                if self._selected_step.Action_type == "INPUT":
-                    input_val = self.ids.input_text_input.text.strip()
-                    self._selected_step.Input_text = input_val if input_val else None
-
-                if self._selected_step.Action_type == "SCROLL":
-                    scroll_dx_val = self.ids.scroll_dx_input.text.strip()
-                    scroll_dy_val = self.ids.scroll_dy_input.text.strip()
-                    self._selected_step.Scroll_DX = int(scroll_dx_val) if scroll_dx_val else None
-                    self._selected_step.Scroll_DY = int(scroll_dy_val) if scroll_dy_val else None
-
-            modified_step_nums = list(self._bbox_modifications.keys())
-            for step_num in modified_step_nums:
-                step_to_save = None
+            total = len(step_nums)
+            for idx, step_num in enumerate(step_nums):
+                step_to_recalc = None
                 for step in self._steps:
                     if step.Step_number == step_num:
-                        step_to_save = step
+                        step_to_recalc = step
                         break
 
-                if not step_to_save:
+                if not step_to_recalc or not step_to_recalc.Screenshot:
                     continue
 
-                if step_to_save.Screenshot and step_to_save.BBox:
+                # Handle main BBox
+                if step_to_recalc.BBox:
                     try:
-                        nparr = np.frombuffer(step_to_save.Screenshot, np.uint8)
+                        nparr = np.frombuffer(step_to_recalc.Screenshot, np.uint8)
                         screenshot = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                        bbox = json.loads(step_to_save.BBox)
+                        bbox = json.loads(step_to_recalc.BBox)
 
                         x = int(bbox.get('x', 0))
                         y = int(bbox.get('y', 0))
@@ -1277,38 +1333,110 @@ class SummaryDesignerScreen(Screen):
                         h = int(bbox.get('h', 0))
 
                         crop_image = screenshot[y:y+h, x:x+w]
+                        print(f"[RECALC] Step #{step_num}: crop shape={crop_image.shape}, size={crop_image.size}")
+
+                        _, bbox_template_png = cv2.imencode('.png', crop_image)
+                        step_to_recalc.BBox_Template = bbox_template_png.tobytes()
+                        print(f"[RECALC] Step #{step_num}: BBox_Template saved ({len(step_to_recalc.BBox_Template)} bytes)")
+
                         if crop_image.size > 0:
-                            self._recalculate_bbox_models(step_to_save, crop_image)
+                            print(f"[RECALC] Step #{step_num}: calling _recalculate_bbox_models (main)")
+                            self._recalculate_bbox_models(step_to_recalc, crop_image, is_drag=False)
+                            print(f"[RECALC] Step #{step_num}: main models recalculated")
                     except Exception as e:
-                        print(f"Error extracting crop for step #{step_num}: {e}")
+                        print(f"Error recalculating main BBox for step #{step_num}: {e}")
 
-                self._db.update_step(step_to_save)
-                print(f"Saved step #{step_num}")
+                # Handle drag BBox for DRAG_AND_DROP actions
+                if step_to_recalc.Action_type == 'DRAG_AND_DROP' and step_to_recalc.BBox_drag:
+                    try:
+                        nparr = np.frombuffer(step_to_recalc.Screenshot, np.uint8)
+                        screenshot = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                        bbox_drag = json.loads(step_to_recalc.BBox_drag)
 
-            self._bbox_modifications.clear()
+                        x = int(bbox_drag.get('x', 0))
+                        y = int(bbox_drag.get('y', 0))
+                        w = int(bbox_drag.get('w', 0))
+                        h = int(bbox_drag.get('h', 0))
 
-            self._steps = self._db.get_steps()
-            for step in self._steps:
-                if step.Step_number == self._selected_step.Step_number:
-                    self._selected_step = step
-                    break
+                        crop_image_drag = screenshot[y:y+h, x:x+w]
+                        print(f"[RECALC] Step #{step_num}: drag crop shape={crop_image_drag.shape}, size={crop_image_drag.size}")
 
-            self._step_clean_values = {
-                'tc': str(self._selected_step.Step_testcase) if self._selected_step.Step_testcase else "",
-                'input_text': self._selected_step.Input_text if self._selected_step.Input_text else "",
-                'scroll_dx': str(self._selected_step.Scroll_DX) if self._selected_step.Scroll_DX is not None else "",
-                'scroll_dy': str(self._selected_step.Scroll_DY) if self._selected_step.Scroll_DY is not None else "",
-            }
-            self.ids.save_step_button.disabled = True
+                        _, bbox_drag_template_png = cv2.imencode('.png', crop_image_drag)
+                        step_to_recalc.BBox_drag_Template = bbox_drag_template_png.tobytes()
+                        print(f"[RECALC] Step #{step_num}: BBox_drag_Template saved ({len(step_to_recalc.BBox_drag_Template)} bytes)")
 
-            self._populate_edit_panel(self._selected_step)
+                        if crop_image_drag.size > 0:
+                            print(f"[RECALC] Step #{step_num}: calling _recalculate_bbox_models (drag)")
+                            self._recalculate_bbox_models(step_to_recalc, crop_image_drag, is_drag=True)
+                            print(f"[RECALC] Step #{step_num}: drag models recalculated")
+                    except Exception as e:
+                        print(f"Error recalculating drag BBox for step #{step_num}: {e}")
 
-            print(f"Saved step #{self._selected_step.Step_number}")
+                # Save to DB
+                try:
+                    print(f"[RECALC] Step #{step_num}: saving to DB")
+                    self._db.update_step(step_to_recalc)
+                    print(f"[RECALC] Step #{step_num}: saved to DB")
 
-        except ValueError as e:
-            print(f"Error parsing numeric fields: {e}")
+                except Exception as e:
+                    print(f"Error recalculating step #{step_num}: {e}")
+
+                progress_val = int((idx + 1) / total * 100)
+                Clock.schedule_once(
+                    lambda dt, v=progress_val, i=idx+1, t=total, lbl=progress_label, pb=progress_bar:
+                    self._update_progress(lbl, pb, v, i, t),
+                    0
+                )
+
+            Clock.schedule_once(lambda dt: self._on_recalculation_done(popup), 0)
+
         except Exception as e:
-            print(f"Error saving step: {e}")
+            print(f"Error in recalculation thread: {e}")
+            import traceback
+            traceback.print_exc()
+            Clock.schedule_once(lambda dt: popup.dismiss(), 0)
+
+    def _update_progress(self, label, progress_bar, value, current, total):
+        progress_bar.value = value
+        label.text = f"Updating BBox Features... ({current}/{total})"
+
+    def _on_recalculation_done(self, popup):
+        popup.dismiss()
+        self._ai_recalc_needed.clear()
+        self.ids.save_step_button.disabled = True
+
+        self._steps = self._db.get_steps()
+        for step in self._steps:
+            if step.Step_number == self._selected_step.Step_number:
+                self._selected_step = step
+                break
+
+        self._load_step(self._selected_step)
+        self._populate_edit_panel(self._selected_step)
+        print("BBox features recalculation completed")
+
+    def update_bbox_features(self):
+        if not self._db or not self._ai_recalc_needed:
+            print("No steps to recalculate")
+            return
+
+        try:
+            step_nums = list(self._ai_recalc_needed)
+
+            popup, progress_label, progress_bar = self._show_loading_popup(len(step_nums))
+            popup.open()
+
+            thread = threading.Thread(
+                target=self._run_recalculation_thread,
+                args=(step_nums, popup, progress_label, progress_bar),
+                daemon=True
+            )
+            thread.start()
+
+        except Exception as e:
+            print(f"Error starting recalculation: {e}")
+            import traceback
+            traceback.print_exc()
 
     def open_screenshot_picker(self):
         if not self._selected_step:
@@ -1407,22 +1535,124 @@ class SummaryDesignerScreen(Screen):
                 img_bgr = img_rgb[:, :, ::-1]
                 _, png_bytes = cv2.imencode('.png', img_bgr)
                 self._selected_step.Screenshot = png_bytes.tobytes()
+                self._selected_step.Template = png_bytes.tobytes()
+
+                bbox_image = img_bgr
+                if self._selected_step.BBox:
+                    try:
+                        bbox = json.loads(self._selected_step.BBox)
+                        x = int(bbox.get('x', 0))
+                        y = int(bbox.get('y', 0))
+                        w_bbox = int(bbox.get('w', 0))
+                        h_bbox = int(bbox.get('h', 0))
+                        bbox_image = img_bgr[y:y+h_bbox, x:x+w_bbox]
+                    except Exception as e:
+                        print(f"Error parsing BBox: {e}")
+
+                _, bbox_template_png = cv2.imencode('.png', bbox_image)
+                self._selected_step.BBox_Template = bbox_template_png.tobytes()
+
+            if self._db:
+                self._db.update_step(self._selected_step)
+                self._ai_recalc_needed.add(self._selected_step.Step_number)
+                self.ids.save_step_button.disabled = False
+
             if popup:
                 popup.dismiss()
             self._load_step(self._selected_step)
-            print(f"[SCREENSHOT] Monitor catturato per step #{self._selected_step.Step_number}")
+            print(f"[SCREENSHOT] Monitor catturato per step #{self._selected_step.Step_number} (auto-saved, needs recalc)")
         except Exception as e:
             print(f"[SCREENSHOT] Errore cattura monitor: {e}")
 
     def _use_step_screenshot(self, source_step, popup):
         try:
             self._selected_step.Screenshot = source_step.Screenshot
+            self._selected_step.Template = source_step.Screenshot
+            self._selected_step.BBox_Template = source_step.BBox_Template
+
+            if self._db:
+                self._db.update_step(self._selected_step)
+                self._ai_recalc_needed.add(self._selected_step.Step_number)
+                self.ids.save_step_button.disabled = False
+
             if popup:
                 popup.dismiss()
             self._load_step(self._selected_step)
-            print(f"[SCREENSHOT] Usato screenshot da step #{source_step.Step_number}")
+            print(f"[SCREENSHOT] Usato screenshot da step #{source_step.Step_number} (auto-saved, needs recalc)")
         except Exception as e:
             print(f"[SCREENSHOT] Errore: {e}")
+
+    def open_modifier_keys_picker(self):
+        if not self._selected_step or self._selected_step.Action_type == "INPUT":
+            return
+
+        from kivy.uix.gridlayout import GridLayout
+
+        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
+
+        content.add_widget(Label(
+            text="Select Modifier Keys:",
+            font_size='12sp',
+            color=(0.85, 0.85, 0.85, 1),
+            size_hint_y=None,
+            height=dp(30),
+            halign='left'
+        ))
+
+        modifier_keys = ['shift', 'ctrl', 'alt']
+        checkboxes = {}
+
+        try:
+            current_keys = json.loads(self._selected_step.Modifier_keys) if self._selected_step.Modifier_keys else []
+        except:
+            current_keys = []
+
+        grid = GridLayout(cols=1, spacing=dp(8), size_hint_y=None, padding=dp(8))
+        grid.bind(minimum_height=grid.setter('height'))
+
+        for key in modifier_keys:
+            row = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(40), spacing=dp(8))
+            chk = CheckBox(
+                active=(key in current_keys),
+                size_hint_x=None,
+                width=dp(30)
+            )
+            checkboxes[key] = chk
+            row.add_widget(chk)
+            row.add_widget(Label(
+                text=key,
+                font_size='11sp',
+                color=(0.85, 0.85, 0.85, 1)
+            ))
+            grid.add_widget(row)
+
+        content.add_widget(grid)
+
+        btn_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(40), spacing=dp(8))
+        save_btn = Button(text='Save', size_hint_x=0.5)
+        cancel_btn = Button(text='Cancel', size_hint_x=0.5)
+        btn_layout.add_widget(save_btn)
+        btn_layout.add_widget(cancel_btn)
+        content.add_widget(btn_layout)
+
+        popup = Popup(
+            title='Modifier Keys',
+            content=content,
+            size_hint=(0.7, 0.6),
+        )
+
+        def save_modifier_keys(_):
+            selected = [key for key, chk in checkboxes.items() if chk.active]
+            self._selected_step.Modifier_keys = json.dumps(selected)
+            if self._db:
+                self._db.update_step(self._selected_step)
+            popup.dismiss()
+            print(f"Modifier keys saved: {selected}")
+
+        save_btn.bind(on_release=save_modifier_keys)
+        cancel_btn.bind(on_release=popup.dismiss)
+
+        popup.open()
 
     def open_action_picker(self):
         if not self._selected_step:
@@ -1513,7 +1743,9 @@ class SummaryDesignerScreen(Screen):
             step.Scroll_DY = None
 
         self._db.update_step(step)
-        print(f"[ACTION] Step #{step.Step_number}: {old_type} → {new_type}")
+        self._ai_recalc_needed.add(step.Step_number)
+        self.ids.save_step_button.disabled = False
+        print(f"[ACTION] Step #{step.Step_number}: {old_type} → {new_type} (auto-saved, needs recalc)")
 
         # Ricarica dallo stato persistito
         step_num = step.Step_number
@@ -1531,6 +1763,56 @@ class SummaryDesignerScreen(Screen):
             self._selected_row = row
 
         self._load_step(self._selected_step)
+
+    def delete_step(self):
+        """Delete the current step and load the next one"""
+        if not self._selected_step or not self._db:
+            return
+
+        step_to_delete = self._selected_step
+        step_num_to_delete = step_to_delete.Step_number
+        step_id_to_delete = step_to_delete.ID
+
+        try:
+            # Delete from DB
+            self._db.delete_step(step_id_to_delete)
+
+            # Reorder remaining steps
+            self._db.reorder_steps()
+
+            # Reload steps from DB
+            self._steps = self._db.get_steps()
+
+            # Rebuild steps list UI
+            self._load_steps_list()
+
+            # Load next step or previous if deleted was last
+            if self._steps:
+                if step_num_to_delete <= len(self._steps):
+                    # Load step at same position (which is now the next one)
+                    next_step_num = self._steps[step_num_to_delete - 1].Step_number
+                else:
+                    # Deleted was last, load the new last step
+                    next_step_num = self._steps[-1].Step_number
+
+                self._load_step_by_number(next_step_num)
+            else:
+                # No more steps
+                self._selected_step = None
+                self.ids.screenshot_image.set_screenshot_bytes(None)
+                self.ids.screenshot_image.set_bbox(None)
+                self.ids.info_grid.clear_widgets()
+                self.ids.steps_grid.clear_widgets()
+                self._step_rows = {}
+                self._ai_recalc_needed.clear()
+                self.ids.save_step_button.disabled = True
+
+            print(f"[DELETE] Step #{step_num_to_delete} deleted, remaining {len(self._steps)} steps")
+
+        except Exception as e:
+            print(f"[ERROR] Failed to delete step: {e}")
+            import traceback
+            traceback.print_exc()
 
     def go_home(self):
         self.manager.current = "menu"

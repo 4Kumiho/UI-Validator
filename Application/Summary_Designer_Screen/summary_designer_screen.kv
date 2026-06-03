@@ -53,6 +53,7 @@
             orientation: "horizontal"
             spacing: dp(12)
             padding: [dp(12), dp(12), dp(12), dp(12)]
+            size_hint_y: 1
 
             BoxLayout:
                 orientation: "vertical"
@@ -64,6 +65,7 @@
             BoxLayout:
                 orientation: "vertical"
                 size_hint_x: 0.20
+                size_hint_y: 1
                 spacing: dp(4)
 
                 Label:
@@ -204,7 +206,7 @@
                             id: action_dropdown
                             text: "Action"
                             font_size: "11sp"
-                            size_hint_x: 0.5
+                            size_hint_x: 0.33
                             background_color: 0, 0, 0, 0
                             color: 1, 1, 1, 1
                             on_release: root.open_action_picker()
@@ -219,7 +221,7 @@
                             id: screenshot_dropdown
                             text: "Screenshot"
                             font_size: "11sp"
-                            size_hint_x: 0.5
+                            size_hint_x: 0.33
                             background_color: 0, 0, 0, 0
                             color: 1, 1, 1, 1
                             on_release: root.open_screenshot_picker()
@@ -230,7 +232,23 @@
                                     rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
                                     width: 1.5
 
+                        Button:
+                            id: modifier_keys_dropdown
+                            text: "Modifier Keys"
+                            font_size: "11sp"
+                            size_hint_x: 0.34
+                            background_color: 0, 0, 0, 0
+                            color: 1, 1, 1, 1
+                            on_release: root.open_modifier_keys_picker()
+                            canvas.before:
+                                Color:
+                                    rgba: 0.35, 0.53, 1.0, 1
+                                Line:
+                                    rounded_rectangle: (self.x, self.y, self.width, self.height, dp(6))
+                                    width: 1.5
+
                     ScrollView:
+                        size_hint_y: 1
                         GridLayout:
                             id: info_grid
                             cols: 1
@@ -240,10 +258,11 @@
                             padding: dp(4)
 
         BoxLayout:
+            orientation: "horizontal"
             size_hint_y: None
             height: dp(60)
             spacing: dp(12)
-            padding: [dp(16), dp(12), dp(16), dp(12)]
+            padding: [dp(12), dp(12), dp(12), dp(12)]
             canvas.before:
                 Color:
                     rgba: 0.05, 0.05, 0.07, 1
@@ -251,32 +270,44 @@
                     pos: self.pos
                     size: self.size
 
-            Button:
-                text: "Save Updated BBox"
-                bold: True
-                font_size: "13sp"
-                id: save_step_button
-                disabled: True
-                background_color: 0, 0, 0, 0
-                color: 0.4, 0.4, 0.4, 1
-                canvas.before:
-                    Color:
-                        rgba: 0.3, 0.3, 0.3, 1
-                    Line:
-                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
-                        width: 1.5
-                on_release: root.save_step()
+            BoxLayout:
+                orientation: "horizontal"
+                size_hint_x: 0.80
+                spacing: dp(8)
 
-            Button:
-                text: "Go Home"
-                bold: True
-                font_size: "13sp"
-                background_color: 0, 0, 0, 0
-                color: 1, 1, 1, 1
-                canvas.before:
-                    Color:
-                        rgba: 0.35, 0.53, 1.0, 1
-                    Line:
-                        rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
-                        width: 1.5
-                on_release: root.go_home()
+                Button:
+                    text: "Update BBox Features"
+                    bold: True
+                    font_size: "13sp"
+                    id: save_step_button
+                    disabled: True
+                    size_hint_x: 0.5
+                    background_color: 0, 0, 0, 0
+                    color: 0.4, 0.4, 0.4, 1
+                    canvas.before:
+                        Color:
+                            rgba: 0.3, 0.3, 0.3, 1
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                            width: 1.5
+                    on_release: root.update_bbox_features()
+
+                Button:
+                    text: "Delete Step"
+                    bold: True
+                    font_size: "13sp"
+                    id: delete_step_button
+                    disabled: False
+                    size_hint_x: 0.5
+                    background_color: 0, 0, 0, 0
+                    color: 1, 0.4, 0.4, 1
+                    canvas.before:
+                        Color:
+                            rgba: 0.6, 0.2, 0.2, 1
+                        Line:
+                            rounded_rectangle: (self.x, self.y, self.width, self.height, dp(8))
+                            width: 1.5
+                    on_release: root.delete_step()
+
+            Widget:
+                size_hint_x: 0.20
